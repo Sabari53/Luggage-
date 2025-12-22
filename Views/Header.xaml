@@ -87,6 +87,7 @@
                     
                     <Button x:Name="DashboardButton" Content="Dashboard" Style="{StaticResource HeaderButtonStyle}" MinWidth="120" Click="Dashboard_Click"/>
                     <Button x:Name="NewBookingButton" Content="New Booking" Style="{StaticResource HeaderButtonStyle}" MinWidth="140" Click="NewBooking_Click"/>
+                    <Button x:Name="BookingButton" Content="BOOKING" Style="{StaticResource HeaderButtonStyle}" MinWidth="120" Click="Booking_Click"/>
                     <Button x:Name="SubmitBookingButton" Content="Submit Booking" Style="{StaticResource HeaderButtonStyle}" MinWidth="150" Click="Submit_Click" Background="#555555" Visibility="Collapsed"  />
                 </StackPanel>
 

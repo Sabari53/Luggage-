@@ -448,7 +448,7 @@ namespace UserModule
                     {
                         Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colors[colorIndex % colors.Length].Background)),
                         Padding = new Thickness(6, 4, 6, 4),
-                        CornerRadius = new CornerRadius(16),
+                        CornerRadius = new CornerRadius(8),
                         Margin = new Thickness(0, 0, 6, 0)
                     };
 
@@ -462,7 +462,7 @@ namespace UserModule
                     {
                         Text = $"{typeName}: 0",
                         Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colors[colorIndex % colors.Length].Foreground)),
-                        FontSize = 12,
+                        FontSize = 14,
                         FontWeight = FontWeights.SemiBold
                     };
 

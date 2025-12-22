@@ -206,12 +206,26 @@ namespace UserModule
             LoadContent(new NewBooking(dashboard));
         }
 
+        private void Booking_Click(object sender, RoutedEventArgs e)
+        {
+            SetSelectedButton(BookingButton);
+            SetSubmitButtonVisibility(false); // Hide Submit button
+            LoadContent(new UserModule.Views.Luggage());
+        }
+
         public void OpenNewBooking()
         {
             SetSelectedButton(NewBookingButton);
             SetSubmitButtonVisibility(false); // Hide Submit button
             var dashboard = MainContentGrid.Children.OfType<Dashboard>().FirstOrDefault() ?? new Dashboard();
             LoadContent(new NewBooking(dashboard));
+        }
+
+        public void OpenBooking()
+        {
+            SetSelectedButton(BookingButton);
+            SetSubmitButtonVisibility(false); // Hide Submit button
+            LoadContent(new UserModule.Views.Luggage());
         }
 
         private void Submit_Click(object sender, RoutedEventArgs e)
