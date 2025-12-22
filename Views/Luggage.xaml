@@ -202,7 +202,7 @@
         </Grid.RowDefinitions>
 
         <!-- Main Content Area -->
-        <Grid Grid.Row="0" Background="#F7F7F7" Margin="0,10,0,20" VerticalAlignment="Top">
+            <Grid Grid.Row="0" Margin="0,10,0,20" VerticalAlignment="Top">
             <Border Background="#232323" CornerRadius="8" Padding="20" Margin="24,10,20,10" VerticalAlignment="Top">
                 <Grid>
                     <!-- Two columns: left for title, right for Booking ID -->
@@ -342,93 +342,303 @@
                     <!-- Hidden combined field -->
                     <TextBox x:Name="txtCustomer" Visibility="Collapsed"/>
 
-
-                    <!-- Pricing Info (if any) could go in Row 3 -->
-
-                    <!-- Proof Information -->
+                    <!-- Proof Information - 1 Row, 4 Columns -->
                     <Grid Grid.Row="4" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,20">
-
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                        <!-- Section Title -->
+                        <TextBlock Text="Proof Information" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="14" 
+                                   Foreground="#222" 
+                                   Grid.Row="0"
+                                   Margin="0,0,0,14"/>
 
-                        <!-- ROW 1 - COL 0 : ID TYPE -->
-                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,15,0">
-                            <TextBlock Text="Proof Information" FontWeight="SemiBold" FontSize="14" Foreground="#222" Margin="0,0,0,14"/>
-                            <TextBlock Text="ID Type" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                        <!-- 1 Row, 4 Columns Grid for ID Type, ID Number, Date, Time -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                            <ComboBox x:Name="cmbIdType"
-                             Height="40"
-                             Padding="10,0"
-                             FontSize="14"
-                             Foreground="#333"
-                             Background="White"
-                             HorizontalContentAlignment="Left"
-                             VerticalContentAlignment="Center"
-                             MaxDropDownHeight="150"
-                             PreviewKeyDown="IdType_PreviewKeyDown"
-                             Style="{StaticResource WhiteComboBoxStyle}"
-                             SelectionChanged="cmbIdType_SelectionChanged">
-                                <ComboBoxItem x:Name="idPlaceholder" Content="Select ID" IsEnabled="False" IsSelected="True"/>
-                                <ComboBoxItem Content="Aadhar" Style="{StaticResource WhiteComboBoxItemStyle}"/>
-                                <ComboBoxItem Content="PNR Number" Style="{StaticResource WhiteComboBoxItemStyle}"/>
-                                <ComboBoxItem Content="PAN ID" Style="{StaticResource WhiteComboBoxItemStyle}"/>
-                            </ComboBox>
+                            <!-- Column 0: ID Type -->
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock Text="ID Type" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <ComboBox x:Name="cmbIdType"
+                                          Height="40"
+                                          Padding="10,0"
+                                          FontSize="14"
+                                          Foreground="#333"
+                                          Background="White"
+                                          HorizontalContentAlignment="Left"
+                                          VerticalContentAlignment="Center"
+                                          MaxDropDownHeight="150"
+                                          PreviewKeyDown="IdType_PreviewKeyDown"
+                                          Style="{StaticResource WhiteComboBoxStyle}"
+                                          SelectionChanged="cmbIdType_SelectionChanged">
+                                    <ComboBoxItem x:Name="idPlaceholder" Content="Select ID" IsEnabled="False" IsSelected="True"/>
+                                    <ComboBoxItem Content="Aadhar" Style="{StaticResource WhiteComboBoxItemStyle}"/>
+                                    <ComboBoxItem Content="PNR Number" Style="{StaticResource WhiteComboBoxItemStyle}"/>
+                                    <ComboBoxItem Content="PAN ID" Style="{StaticResource WhiteComboBoxItemStyle}"/>
+                                </ComboBox>
+                                <TextBlock x:Name="errIdType1" Text="* Select ID Type" Foreground="#CC1F1F" FontSize="12" Visibility="Collapsed" Margin="5,2,0,0"/>
+                            </StackPanel>
 
-                            <TextBlock x:Name="errIdType1" Text="* Select ID Type" Foreground="#CC1F1F" FontSize="12" Visibility="Collapsed" Margin="5,2,0,0"/>
-                        </StackPanel>
+                            <!-- Column 1: ID Number -->
+                            <StackPanel Grid.Column="1" Margin="15,0,15,0">
+                                <TextBlock x:Name="lblIdInput" Text="Enter ID Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtIdNumber"
+                                         Foreground="Black" 
+                                         FontWeight="DemiBold"
+                                         Style="{StaticResource RoundedWatermarkTextBoxStyle}" 
+                                         Tag="ID Number" 
+                                         Height="40"
+                                         TextWrapping="NoWrap"
+                                         AcceptsReturn="False"
+                                         PreviewKeyDown="IdNumber_PreviewKeyDown"
+                                         PreviewTextInput="IdNumber_PreviewTextInput"
+                                         DataObject.Pasting="IdNumber_Pasting"/>
+                                <TextBlock x:Name="errIdNumber1" Text="* Fill ID Number" Foreground="#CC1F1F" FontSize="12" Visibility="Collapsed" Margin="5,2,0,0"/>
+                            </StackPanel>
 
-                        <!-- ROW 1 - COL 1 : ID INPUT -->
-                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="15,32,0,0">
-                            <TextBlock x:Name="lblIdInput" Text="Enter ID Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                            <!-- Column 2: Date -->
+                            <StackPanel Grid.Column="2" Margin="15,0,15,0">
+                                <TextBlock Text="Date" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtBookingDate"
+                                         Style="{StaticResource RoundedWatermarkTextBoxStyle}"
+                                         Foreground="Black" 
+                                         FontWeight="DemiBold"
+                                         Height="40"
+                                         IsReadOnly="True"/>
+                            </StackPanel>
 
-                            <TextBox x:Name="txtIdNumber"
-                             Foreground="Black" FontWeight="DemiBold"
-                             Style="{StaticResource RoundedWatermarkTextBoxStyle}" 
-                             Tag="ID Number" 
-                             Height="40"
-                             TextWrapping="NoWrap"
-                             AcceptsReturn="False"
-                             PreviewKeyDown="IdNumber_PreviewKeyDown"
-                             PreviewTextInput="IdNumber_PreviewTextInput"
-                             DataObject.Pasting="IdNumber_Pasting"/>
-
-                            <TextBlock x:Name="errIdNumber1" Text="* Fill ID Number" Foreground="#CC1F1F" FontSize="12" Visibility="Collapsed" Margin="5,2,0,0"/>
-                        </StackPanel>
-
-                        <!-- ROW 2 - COL 0 : BOOKING DATE -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,15,15,0">
-                            <TextBlock Text="Date" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
-                            <TextBox x:Name="txtBookingDate"
-                             Style="{StaticResource RoundedWatermarkTextBoxStyle}"
-                             Foreground="Black" FontWeight="DemiBold"
-                             Height="40"
-                             IsReadOnly="True"/>
-                        </StackPanel>
-
-                        <!-- ROW 2 - COL 1 : BOOKING TIME -->
-                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="15,15,0,0">
-                            <TextBlock Text="Time" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
-                            <TextBox x:Name="txtBookingTime"
-                             Style="{StaticResource RoundedWatermarkTextBoxStyle}"
-                             Foreground="Black" FontWeight="DemiBold"
-                             Tag="HH:MM"
-                             Height="40"
-                             IsReadOnly="True"/>
-                        </StackPanel>
-
+                            <!-- Column 3: Time -->
+                            <StackPanel Grid.Column="3" Margin="15,0,0,0">
+                                <TextBlock Text="Time" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtBookingTime"
+                                         Style="{StaticResource RoundedWatermarkTextBoxStyle}"
+                                         Foreground="Black" 
+                                         FontWeight="DemiBold"
+                                         Tag="HH:MM"
+                                         Height="40"
+                                         IsReadOnly="True"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
 
+                    <!-- Luggage Details Section -->
+                    <Grid Grid.Row="5" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
+                        <!-- Section Title -->
+                        <TextBlock Text="Luggage Details" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="14" 
+                                   Foreground="#222" 
+                                   Grid.Row="0"
+                                   Margin="0,0,0,14"/>
+
+                        <!-- 1 Row, 2 Columns Grid for Room Count and Room Number -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Column 0: Room Count -->
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock Text="Room Count" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtRoomCount"
+                                         Style="{StaticResource RoundedWatermarkTextBoxStyle}"
+                                         Tag="Enter room count (Max: 60)"
+                                         Foreground="Black" 
+                                         FontWeight="DemiBold"
+                                         Height="40"
+                                         Text=""
+                                         MaxLength="2"
+                                         PreviewTextInput="NumbersOnly_PreviewTextInput"
+                                         DataObject.Pasting="NumbersOnly_Pasting"
+                                         PreviewKeyDown="RoomCount_PreviewKeyDown"
+                                         TextChanged="RoomCount_TextChanged"/>
+                                <TextBlock x:Name="errRoomCount" 
+                                           Text="* Room count must be between 1 and 60" 
+                                           Foreground="#CC1F1F" 
+                                           FontSize="12" 
+                                           Visibility="Collapsed" 
+                                           Margin="5,2,0,0"/>
+                            </StackPanel>
+
+                            <!-- Column 1: Room Number (Multiple Selection) -->
+                            <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                                <TextBlock Text="Room Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <Grid>
+                                    <!-- TextBox with dropdown arrow button -->
+                                    <Border BorderBrush="#999999"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Background="White"
+                                            Height="40"
+                                            MouseEnter="RoomNumberBorder_MouseEnter">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="30"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <!-- TextBox for displaying selected rooms -->
+                                            <TextBox x:Name="txtRoomNumbers"
+                                                     Grid.Column="0"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Padding="12,0"
+                                                     FontSize="16"
+                                                     VerticalContentAlignment="Center"
+                                                     Foreground="Black"
+                                                     FontWeight="DemiBold"
+                                                     IsReadOnly="True"
+                                                     PreviewKeyDown="RoomNumber_PreviewKeyDown"
+                                                     PreviewMouseDown="RoomNumbers_MouseDown"
+                                                     Cursor="Hand"
+                                                     ToolTip="Hover or click to select rooms">
+                                                <TextBox.Style>
+                                                    <Style TargetType="TextBox">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="TextBox">
+                                                                    <Grid>
+                                                                        <ScrollViewer x:Name="PART_ContentHost"
+                                                                                      VerticalAlignment="Center"/>
+                                                                        <TextBlock x:Name="Watermark"
+                                                                                   Text="Select room numbers"
+                                                                                   Foreground="#999"
+                                                                                   Margin="12,0,0,0"
+                                                                                   VerticalAlignment="Center"
+                                                                                   IsHitTestVisible="False"
+                                                                                   Opacity="0.6"
+                                                                                   Visibility="Collapsed"/>
+                                                                    </Grid>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <MultiTrigger>
+                                                                            <MultiTrigger.Conditions>
+                                                                                <Condition Property="Text" Value=""/>
+                                                                            </MultiTrigger.Conditions>
+                                                                            <Setter TargetName="Watermark" Property="Visibility" Value="Visible"/>
+                                                                        </MultiTrigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </TextBox.Style>
+                                            </TextBox>
+                                            
+                                            <!-- Dropdown arrow button -->
+                                            <Button Grid.Column="1"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    ToolTip="Open room selection"
+                                                    Click="RoomNumberDropdown_Click"
+                                                    Focusable="False">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                            Padding="{TemplateBinding Padding}">
+                                                                        <Path x:Name="Arrow"
+                                                                              Fill="#666"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"
+                                                                              Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="Arrow" Property="Fill" Value="#333"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsPressed" Value="True">
+                                                                            <Setter TargetName="Arrow" Property="Fill" Value="#000"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    
+                                    <!-- Popup for room selection -->
+                                    <Popup x:Name="roomNumberPopup"
+                                           PlacementTarget="{Binding ElementName=txtRoomNumbers}"
+                                           Placement="Bottom"
+                                           StaysOpen="False"
+                                           AllowsTransparency="True"
+                                           Width="400"
+                                           PopupAnimation="Slide">
+                                        <Border Background="White"
+                                                BorderBrush="#999999"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                MaxHeight="250"
+                                                MinHeight="100">
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox x:Name="lstRoomNumbers"
+                                                         SelectionMode="Multiple"
+                                                         Background="White"
+                                                         BorderThickness="0"
+                                                         Padding="4"
+                                                         MinHeight="100"
+                                                         SelectionChanged="RoomNumbers_SelectionChanged">
+                                                    <ListBox.ItemContainerStyle>
+                                                        <Style TargetType="ListBoxItem">
+                                                            <Setter Property="Padding" Value="10,8"/>
+                                                            <Setter Property="Background" Value="White"/>
+                                                            <Setter Property="FontSize" Value="14"/>
+                                                            <Setter Property="FontWeight" Value="Normal"/>
+                                                            <Setter Property="Foreground" Value="#333"/>
+                                                            <Setter Property="Cursor" Value="Hand"/>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#F0F0F0"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsSelected" Value="True">
+                                                                    <Setter Property="Background" Value="#E6F0FE"/>
+                                                                    <Setter Property="Foreground" Value="#333"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ListBox.ItemContainerStyle>
+                                                </ListBox>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                                <TextBlock x:Name="errRoomNumber" 
+                                           Text="* Select at least one room number" 
+                                           Foreground="#CC1F1F" 
+                                           FontSize="12" 
+                                           Visibility="Collapsed" 
+                                           Margin="5,2,0,0"/>
+                            </StackPanel>
+
+                        </Grid>
+                    </Grid>
 
                     <!-- Data grid for luggage items inserted inside the main grid -->
-                    <Border Grid.Row="5" Grid.ColumnSpan="3" Margin="0,0,0,10" Background="#FFFFFF" CornerRadius="8" Padding="8">
+                    <Border Grid.Row="6" Grid.ColumnSpan="3" Margin="0,0,0,10" Background="#FFFFFF" CornerRadius="8" Padding="8">
                         <DataGrid x:Name="LuggageGrid"
                                   ItemsSource="{Binding Items}"
                                   AutoGenerateColumns="False"
@@ -700,7 +910,7 @@
                     </Border>
 
                     <!-- Submit / Cancel Buttons -->
-                    <Grid Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                    <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,20,0,0">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                             <Button x:Name="GenerateBillButton" Content="Generate Bill" Width="249" Height="40" Background="#232323" Foreground="white" FontSize="16" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0" Click="GenerateBill_Click"/>
                             <Button Content="Cancel" Width="243" Height="40" Background="#BDBCBC" Foreground="White" FontSize="16" FontWeight="SemiBold" BorderBrush="#999" BorderThickness="0" Cursor="Hand"/>

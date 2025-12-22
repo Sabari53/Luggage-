@@ -1241,8 +1241,6 @@ namespace UserModule.Views
                     {
                         // Second Enter: Select the highlighted item and move to next cell
                         e.Handled = true;
-
-                        // Close dropdown first
                         comboBox.IsDropDownOpen = false;
 
                         // Commit the current edit
@@ -1480,7 +1478,424 @@ namespace UserModule.Views
             }
         }
 
-        // Validation method for ID number based on selected type
+        /// <summary>
+        /// Handle room count preview key down for Tab navigation
+        /// </summary>
+        private void RoomCount_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                // Check for Shift+Enter to trigger Generate Bill
+                if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Shift)
+                {
+                    e.Handled = true;
+                    GenerateBill_Click(sender, new RoutedEventArgs());
+                    return;
+                }
+
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+
+                    // Validate room count
+                    if (!ValidateRoomCount())
+                    {
+                        if (errRoomCount != null)
+                            errRoomCount.Visibility = Visibility.Visible;
+                        return;
+                    }
+                    else
+                    {
+                        if (errRoomCount != null)
+                            errRoomCount.Visibility = Visibility.Collapsed;
+                    }
+
+                    // Null-safety check before focusing
+                    if (txtRoomNumbers == null)
+                        return;
+
+                    // Move focus to room number field
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        txtRoomNumbers?.Focus();
+                    }), System.Windows.Threading.DispatcherPriority.Render);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomCount_PreviewKeyDown: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle room number preview key down for Tab navigation
+        /// </summary>
+        private void RoomNumber_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                // Check for Shift+Enter to trigger Generate Bill
+                if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Shift)
+                {
+                    e.Handled = true;
+                    GenerateBill_Click(sender, new RoutedEventArgs());
+                    return;
+                }
+
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+
+                    // Null-safety checks
+                    if (roomNumberPopup == null || lstRoomNumbers == null)
+                        return;
+
+                    if (!roomNumberPopup.IsOpen)
+                    {
+                        // First Enter: Open the popup
+                        if (ValidateRoomCount())
+                        {
+                            // Ensure items are populated before opening
+                            EnsureRoomNumbersPopulated();
+                            roomNumberPopup.IsOpen = true;
+                            System.Diagnostics.Debug.WriteLine("Enter pressed - popup opened");
+                        }
+                        else if (errRoomCount != null)
+                        {
+                            errRoomCount.Visibility = Visibility.Visible;
+                        }
+                    }
+                    else
+                    {
+                        // Second Enter: Close popup and move to luggage grid
+                        roomNumberPopup.IsOpen = false;
+                        System.Diagnostics.Debug.WriteLine("Enter pressed - popup closed, moving to luggage grid");
+
+                        // Validate at least one room is selected
+                        if (lstRoomNumbers.SelectedItems.Count == 0)
+                        {
+                            if (errRoomNumber != null)
+                                errRoomNumber.Visibility = Visibility.Visible;
+                            return;
+                        }
+                        else
+                        {
+                            if (errRoomNumber != null)
+                                errRoomNumber.Visibility = Visibility.Collapsed;
+                        }
+
+                        // Null-safety check for LuggageGrid
+                        if (LuggageGrid == null)
+                            return;
+
+                        // Move focus to the first luggage type cell in the grid
+                        Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try
+                            {
+                                if (LuggageGrid.Items.Count > 0)
+                                {
+                                    var firstItem = LuggageGrid.Items[0];
+                                    var lugTypeColIndex = GetColumnIndexByHeader(LuggageGrid, "Luggage Type");
+
+                                    if (lugTypeColIndex >= 0 && lugTypeColIndex < LuggageGrid.Columns.Count)
+                                    {
+                                        // Set focus to the DataGrid first
+                                        LuggageGrid.Focus();
+                    
+                                        // Navigate to the Luggage Type cell
+                                        NavigateToCell(LuggageGrid, firstItem, LuggageGrid.Columns[lugTypeColIndex]);
+                    
+                                        System.Diagnostics.Debug.WriteLine($"✓ Navigated to Luggage Type cell in row 0");
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Error navigating to luggage grid: {ex.Message}");
+                            }
+                        }), System.Windows.Threading.DispatcherPriority.Render);
+                    }
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    // Escape key: Close popup
+                    if (roomNumberPopup != null && roomNumberPopup.IsOpen)
+                    {
+                        roomNumberPopup.IsOpen = false;
+                        e.Handled = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomNumber_PreviewKeyDown: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle room count text changed - validate and populate room numbers
+        /// </summary>
+        private void RoomCount_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                // Null-safety check
+                if (errRoomCount != null)
+                    errRoomCount.Visibility = Visibility.Collapsed;
+
+                // Null-safety checks for ListBox controls
+                if (lstRoomNumbers == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("ERROR: lstRoomNumbers is NULL in RoomCount_TextChanged");
+                    return;
+                }
+
+                // Clear existing room numbers and selections
+                lstRoomNumbers.Items.Clear();
+                lstRoomNumbers.SelectedItems.Clear();
+                if (txtRoomNumbers != null)
+                    txtRoomNumbers.Text = string.Empty;
+
+                if (string.IsNullOrWhiteSpace(txtRoomCount.Text))
+                {
+                    System.Diagnostics.Debug.WriteLine("Room count is empty - not populating rooms");
+                    return;
+                }
+
+                if (!int.TryParse(txtRoomCount.Text, out int roomCount))
+                {
+                    if (errRoomCount != null)
+                        errRoomCount.Visibility = Visibility.Visible;
+                    System.Diagnostics.Debug.WriteLine($"Invalid room count: {txtRoomCount.Text}");
+                    return;
+                }
+
+                // Validate room count range
+                if (roomCount < 1 || roomCount > 60)
+                {
+                    if (errRoomCount != null)
+                        errRoomCount.Visibility = Visibility.Visible;
+                    System.Diagnostics.Debug.WriteLine($"Room count out of range: {roomCount}");
+                    return;
+                }
+
+                // Populate room numbers from 1 to 60 (total available rooms)
+                for (int i = 1; i <= 60; i++)
+                {
+                    lstRoomNumbers.Items.Add($"Room {i}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"✓ Successfully populated {lstRoomNumbers.Items.Count} room options (user can select up to {roomCount} rooms)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR in RoomCount_TextChanged: {ex.Message}");
+                if (errRoomCount != null)
+                    errRoomCount.Visibility = Visibility.Visible;
+            }
+        }
+
+        /// <summary>
+        /// Handle room number border mouse enter to open popup on hover
+        /// </summary>
+        private void RoomNumberBorder_MouseEnter(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                // Only open if room count is valid and popup is not already open
+                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null && !roomNumberPopup.IsOpen)
+                {
+                    // Ensure items are populated before opening
+                    EnsureRoomNumbersPopulated();
+                    roomNumberPopup.IsOpen = true;
+                    
+                    System.Diagnostics.Debug.WriteLine("Room numbers field hovered - popup opened");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomNumberBorder_MouseEnter: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle room numbers mouse down to open popup
+        /// </summary>
+        private void RoomNumbers_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                // Prevent the event from bubbling
+                e.Handled = true;
+                
+                // Only open if room count is valid
+                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null)
+                {
+                    // Ensure items are populated before opening
+                    EnsureRoomNumbersPopulated();
+                    
+                    // Toggle the popup
+                    if (!roomNumberPopup.IsOpen)
+                    {
+                        roomNumberPopup.IsOpen = true;
+                        System.Diagnostics.Debug.WriteLine("Room numbers textbox clicked - popup opened");
+                    }
+                }
+                else
+                {
+                    if (errRoomCount != null)
+                        errRoomCount.Visibility = Visibility.Visible;
+                    
+                    MessageBox.Show("Please enter a valid room count (1-60) first.", 
+                        "Room Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomNumbers_MouseDown: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle dropdown button click to open room selection popup
+        /// </summary>
+        private void RoomNumberDropdown_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Only open if room count is valid
+                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null)
+                {
+                    // Ensure items are populated before opening
+                    EnsureRoomNumbersPopulated();
+                    
+                    // Toggle the popup
+                    roomNumberPopup.IsOpen = !roomNumberPopup.IsOpen;
+                    
+                    System.Diagnostics.Debug.WriteLine($"Room dropdown clicked - Popup is now {(roomNumberPopup.IsOpen ? "open" : "closed")}");
+                }
+                else
+                {
+                    // Show error if room count is not valid
+                    if (errRoomCount != null)
+                        errRoomCount.Visibility = Visibility.Visible;
+                    
+                    MessageBox.Show("Please enter a valid room count (1-60) first.", 
+                        "Room Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomNumberDropdown_Click: {ex.Message}");
+            }
+        }
+
+        private bool ValidateRoomCount()
+        {
+            try
+            {
+                if (txtRoomCount == null || string.IsNullOrWhiteSpace(txtRoomCount.Text))
+                    return false;
+
+                if (!int.TryParse(txtRoomCount.Text, out int roomCount))
+                    return false;
+
+                return roomCount >= 1 && roomCount <= 60;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in ValidateRoomCount: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void EnsureRoomNumbersPopulated()
+        {
+            try
+            {
+                if (lstRoomNumbers == null || txtRoomCount == null)
+                    return;
+
+                if (lstRoomNumbers.Items.Count != 60)
+                {
+                    var currentSelections = new System.Collections.Generic.List<string>();
+                    if (lstRoomNumbers.SelectedItems.Count > 0)
+                    {
+                        currentSelections.AddRange(lstRoomNumbers.SelectedItems.Cast<string>());
+                    }
+
+                    lstRoomNumbers.Items.Clear();
+                    
+                    for (int i = 1; i <= 60; i++)
+                    {
+                        lstRoomNumbers.Items.Add($"Room {i}");
+                    }
+
+                    if (currentSelections.Count > 0)
+                    {
+                        foreach (var selection in currentSelections)
+                        {
+                            var item = lstRoomNumbers.Items.Cast<string>()
+                                .FirstOrDefault(s => s == selection);
+                            if (item != null)
+                            {
+                                lstRoomNumbers.SelectedItems.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in EnsureRoomNumbersPopulated: {ex.Message}");
+            }
+        }
+
+        private void RoomNumbers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (lstRoomNumbers == null || txtRoomNumbers == null || txtRoomCount == null)
+                    return;
+
+                if (!int.TryParse(txtRoomCount.Text, out int maxRoomCount))
+                    return;
+
+                if (lstRoomNumbers.SelectedItems.Count > maxRoomCount)
+                {
+                    if (e.AddedItems.Count > 0)
+                    {
+                        lstRoomNumbers.SelectedItems.Remove(e.AddedItems[0]);
+                        MessageBox.Show($"You can only select up to {maxRoomCount} rooms based on the room count.",
+                            "Selection Limit", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    return;
+                }
+
+                if (lstRoomNumbers.SelectedItems.Count > 0)
+                {
+                    var selectedRooms = lstRoomNumbers.SelectedItems.Cast<string>()
+                        .Select(s => s.Replace("Room ", ""))
+                        .OrderBy(int.Parse)
+                        .ToList();
+                    
+                    txtRoomNumbers.Text = string.Join(", ", selectedRooms.Select(r => $"Room {r}"));
+                    
+                    if (errRoomNumber != null)
+                        errRoomNumber.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    txtRoomNumbers.Text = string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in RoomNumbers_SelectionChanged: {ex.Message}");
+            }
+        }
+
         private bool ValidateIdNumber()
         {
             try
@@ -1514,48 +1929,6 @@ namespace UserModule.Views
             }
         }
 
-        // Enhanced ComboBox selection changed to update input restrictions
-        private void cmbIdType_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            try
-            {
-                if (cmbIdType.SelectedItem != null && cmbIdType.SelectedItem != idPlaceholder)
-                {
-                    string selectedIdType = ((ComboBoxItem)cmbIdType.SelectedItem).Content.ToString();
-                    errIdType1.Visibility = Visibility.Collapsed;
-
-                    // Update input restrictions and placeholder based on selection
-                    switch (selectedIdType)
-                    {
-                        case "Aadhar":
-                            txtIdNumber.MaxLength = 12;
-                            txtIdNumber.Tag = "Enter 12 digit Aadhar number";
-                            lblIdInput.Text = "Enter Aadhar Number";
-                            break;
-
-
-                        case "PNR Number":
-                            txtIdNumber.MaxLength = 10;
-                            txtIdNumber.Tag = "Enter 10 digit PNR number";
-                            lblIdInput.Text = "Enter PNR Number";
-                            break;
-
-
-                        case "PAN ID":
-                            txtIdNumber.MaxLength = 10;
-                            txtIdNumber.Tag = "Enter PAN ID (ABCDE1234F)";
-                            lblIdInput.Text = "Enter PAN ID";
-                            break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in cmbIdType_SelectionChanged: {ex.Message}");
-            }
-        }
-
-        // ID Number input validation based on selected type
         private void IdNumber_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             try
@@ -1572,7 +1945,6 @@ namespace UserModule.Views
                 {
                     case "Aadhar":
                     case "PNR Number":
-                        // Only allow digits
                         e.Handled = !Regex.IsMatch(e.Text, "^[0-9]+$");
                         break;
 
@@ -1580,50 +1952,34 @@ namespace UserModule.Views
                         string currentText = txtIdNumber.Text;
                         int caretIndex = txtIdNumber.CaretIndex;
 
-                        // PAN format: ABCDE1234F (5 letters, 4 digits, 1 letter)
                         if (caretIndex < 5)
                         {
-                            // First 5 positions: only letters (accept both upper and lower case)
                             e.Handled = !Regex.IsMatch(e.Text, "^[a-zA-Z]+$");
 
-                            // Convert to uppercase if it's a valid letter
                             if (!e.Handled)
                             {
-                                // Cancel the original input and insert uppercase version
                                 e.Handled = true;
-
-                                // Insert uppercase text at current position
                                 string upperText = e.Text.ToUpper();
                                 int currentCaretIndex = txtIdNumber.CaretIndex;
                                 string newText = currentText.Insert(currentCaretIndex, upperText);
-
-                                // Update text and caret position
                                 txtIdNumber.Text = newText;
                                 txtIdNumber.CaretIndex = currentCaretIndex + upperText.Length;
                             }
                         }
                         else if (caretIndex >= 5 && caretIndex < 9)
                         {
-                            // Positions 5-8: only digits
                             e.Handled = !Regex.IsMatch(e.Text, "^[0-9]+$");
                         }
                         else if (caretIndex == 9)
                         {
-                            // Last position: only letter (accept both upper and lower case)
                             e.Handled = !Regex.IsMatch(e.Text, "^[a-zA-Z]+$");
 
-                            // Convert to uppercase if it's a valid letter
                             if (!e.Handled)
                             {
-                                // Cancel the original input and insert uppercase version
                                 e.Handled = true;
-
-                                // Insert uppercase text at current position
                                 string upperText = e.Text.ToUpper();
                                 int currentCaretIndex = txtIdNumber.CaretIndex;
                                 string newText = currentText.Insert(currentCaretIndex, upperText);
-
-                                // Update text and caret position
                                 txtIdNumber.Text = newText;
                                 txtIdNumber.CaretIndex = currentCaretIndex + upperText.Length;
                             }
@@ -1641,7 +1997,6 @@ namespace UserModule.Views
             }
         }
 
-        // ID Number pasting validation
         private void IdNumber_Pasting(object sender, DataObjectPastingEventArgs e)
         {
             try
@@ -1671,10 +2026,7 @@ namespace UserModule.Views
                     }
                     else if (selectedIdType == "PAN ID")
                     {
-                        // For PAN ID, convert to uppercase
                         e.CancelCommand();
-
-                        // Manually set the uppercase text
                         txtIdNumber.Text = pastedText.ToUpper();
                         txtIdNumber.CaretIndex = txtIdNumber.Text.Length;
                     }
@@ -1689,6 +2041,48 @@ namespace UserModule.Views
                 System.Diagnostics.Debug.WriteLine($"Error in IdNumber_Pasting: {ex.Message}");
                 e.CancelCommand();
             }
+        }
+
+        private void cmbIdType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbIdType.SelectedItem != null && cmbIdType.SelectedItem != idPlaceholder)
+                {
+                    string selectedIdType = ((ComboBoxItem)cmbIdType.SelectedItem).Content.ToString();
+                    errIdType1.Visibility = Visibility.Collapsed;
+
+                    switch (selectedIdType)
+                    {
+                        case "Aadhar":
+                            txtIdNumber.MaxLength = 12;
+                            txtIdNumber.Tag = "Enter 12 digit Aadhar number";
+                            lblIdInput.Text = "Enter Aadhar Number";
+                            break;
+
+                        case "PNR Number":
+                            txtIdNumber.MaxLength = 10;
+                            txtIdNumber.Tag = "Enter 10 digit PNR number";
+                            lblIdInput.Text = "Enter PNR Number";
+                            break;
+
+                        case "PAN ID":
+                            txtIdNumber.MaxLength = 10;
+                            txtIdNumber.Tag = "Enter PAN ID (ABCDE1234F)";
+                            lblIdInput.Text = "Enter PAN ID";
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in cmbIdType_SelectionChanged: {ex.Message}");
+            }
+        }
+
+        private void RoomNumber_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Placeholder for backward compatibility
         }
     }
 }
