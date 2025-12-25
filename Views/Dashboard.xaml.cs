@@ -401,10 +401,14 @@ namespace UserModule
 
                 int activeCount = 0;
                 int completedCount = 0;
+                decimal totalAmount = 0;
 
                 // Count bookings by status and type from ALL bookings (not filtered)
                 foreach (var booking in allBookings)
                 {
+                    // Add to total amount
+                    totalAmount += booking.total_amount;
+
                     if (booking.status?.ToLower() == "active")
                     {
                         activeCount++;
@@ -413,6 +417,13 @@ namespace UserModule
                         string bookingType = booking.booking_type?.Trim();
                         if (!string.IsNullOrEmpty(bookingType))
                         {
+                            // Check if it's a luggage booking (starts with "Luggage")
+                            if (bookingType.StartsWith("Luggage", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Don't try to match luggage bookings to predefined types
+                                continue;
+                            }
+
                             // Find matching key in dictionary (case-insensitive)
                             var matchingKey = bookingTypeCounts.Keys
                                 .FirstOrDefault(k => k.Equals(bookingType, StringComparison.OrdinalIgnoreCase));
@@ -437,13 +448,17 @@ namespace UserModule
                 ActiveTextBlock.Text = $"Active: {activeCount}";
                 CompletedTextBlock.Text = $"Completed: {completedCount}";
 
+                // Update total bookings and amount
+                TotalBookingsTextBox.Text = $"Total Bookings: {allBookings.Count}";
+                TotalAmountTextBox.Text = $"Total Amount: ₹{totalAmount:F2}";
+
                 // Update booking type counts
                 foreach (var kvp in typeTextBlocks)
                 {
                     kvp.Value.Text = $"{kvp.Key}: {bookingTypeCounts[kvp.Key]}";
                 }
 
-                Logger.Log($"Counts updated - Active: {activeCount}, Completed: {completedCount}");
+                Logger.Log($"Counts updated - Active: {activeCount}, Completed: {completedCount}, Total: {allBookings.Count}, Amount: ₹{totalAmount:F2}");
             }
             catch (Exception ex)
             {
@@ -647,6 +662,21 @@ namespace UserModule
             catch (Exception ex)
             {
                 Logger.LogError(ex);
+            }
+        }
+
+        private void RefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                LoadBookings();
+                Logger.Log("Dashboard refreshed");
+                MessageBox.Show("Bookings refreshed successfully!", "Refresh Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+                MessageBox.Show("An error occurred while refreshing the bookings.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

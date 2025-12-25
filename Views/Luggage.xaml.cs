@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace UserModule.Views
 {
@@ -16,6 +17,9 @@ namespace UserModule.Views
     {
         private static readonly Regex LettersRegex = new Regex("^[a-zA-Z ]+$");
         private static readonly Regex NumbersRegex = new Regex("^[0-9]+$");
+
+        private System.Collections.Generic.List<string> allLockers = new System.Collections.Generic.List<string>();
+        private System.Collections.Generic.List<string> selectedLockersList = new System.Collections.Generic.List<string>();
 
         public ObservableCollection<LuggageItem> Items { get; } = new ObservableCollection<LuggageItem>();
 
@@ -252,7 +256,9 @@ namespace UserModule.Views
         }
 
         // Event Handlers
-        private void UserControl_Loaded(object sender, RoutedEventArgs e) { }
+        private void UserControl_Loaded(object sender, RoutedEventArgs e) 
+        {
+        }
 
         private void CustomerName_TextChanged(object sender, TextChangedEventArgs e) { }
 
@@ -293,7 +299,7 @@ namespace UserModule.Views
         private void Control_PreviewKeyDown(object sender, KeyEventArgs e) { }
 
         // Enhanced GenerateBill_Click with comprehensive validation
-        private void GenerateBill_Click(object sender, RoutedEventArgs e)
+        private async void GenerateBill_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -361,8 +367,47 @@ namespace UserModule.Views
 
                 string idType = ((ComboBoxItem)cmbIdType.SelectedItem).Content.ToString();
 
+                // Create booking object to save to database
+                string bookingId = GenerateBookingId();
+                string workerId = LocalStorage.GetItem("worker_id") ?? LocalStorage.GetItem("username") ?? "LUGGAGE";
+                
+                // Create luggage items description from the items
+                var filledItems = Items.Where(item => !string.IsNullOrWhiteSpace(item.LuggageType) && item.Quantity > 0).ToList();
+                string luggageDescription = string.Join(", ", filledItems.Select(item => $"{item.LuggageType} x{item.Quantity}"));
+
+                var booking = new Models.Booking1
+                {
+                    booking_id = bookingId,
+                    worker_id = workerId,
+                    guest_name = customerName,
+                    phone_number = txtPhone.Text.Trim(),
+                    number_of_persons = filledItems.Sum(item => item.Quantity), // Total number of luggage items
+                    booking_type = $"Luggage ({luggageDescription})", // Store luggage details in booking_type
+                    total_hours = 0, // Luggage doesn't have hours concept
+                    booking_date = DateTime.TryParse(txtBookingDate.Text, out DateTime bookingDate) ? bookingDate : DateTime.Now,
+                    in_time = DateTime.TryParse(txtBookingTime.Text, out DateTime bookingTime) ? bookingTime.TimeOfDay : DateTime.Now.TimeOfDay,
+                    out_time = null, // Will be set when luggage is collected
+                    proof_type = idType,
+                    proof_id = txtIdNumber.Text.Trim(),
+                    price_per_person = totalAmount / Math.Max(1, filledItems.Sum(item => item.Quantity)), // Average price per item
+                    total_amount = totalAmount,
+                    paid_amount = totalAmount, // Luggage is typically paid upfront
+                    balance_amount = 0,
+                    payment_method = "Cash",
+                    created_at = DateTime.Now,
+                    updated_at = DateTime.Now,
+                    status = "active", // Active until luggage is collected
+                    IsSynced = 0
+                };
+
+                // Save booking to database
+                await OfflineBookingStorage.SaveBookingAsync(booking, showMessages: false);
+                Logger.Log($"Luggage booking saved: {bookingId} for {customerName}");
+
+                // Show success message with booking details
                 string summary = $"LUGGAGE BOOKING BILL\n" +
                                $"====================\n\n" +
+                               $"Booking ID: {bookingId}\n" +
                                $"Customer: {customerName}\n" +
                                $"Phone: {txtPhone.Text}\n" +
                                $"ID Type: {idType}\n" +
@@ -371,8 +416,6 @@ namespace UserModule.Views
                                $"Time: {txtBookingTime.Text}\n\n" +
                                $"ITEMS:\n" +
                                $"------\n";
-
-                var filledItems = Items.Where(item => !string.IsNullOrWhiteSpace(item.LuggageType) && item.Quantity > 0);
 
                 foreach (var item in filledItems)
                 {
@@ -385,11 +428,68 @@ namespace UserModule.Views
                 summary += $"==============================";
 
                 MessageBox.Show(summary, "Bill Generated Successfully", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Refresh Dashboard to show the new booking
+                RefreshDashboard();
+
+                // Clear the form for next booking
+                ClearForm();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error in GenerateBill_Click: {ex.Message}");
+                Logger.LogError(ex);
                 MessageBox.Show("Error generating bill. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Generate unique booking ID
+        private string GenerateBookingId()
+        {
+            return "LUG" + DateTime.Now.ToString("yyyyMMddHHmmss") + new Random().Next(100, 999);
+        }
+
+        // Refresh Dashboard after saving booking
+        private void RefreshDashboard()
+        {
+            try
+            {
+                var mainWindow = Application.Current.MainWindow as MainWindow;
+                if (mainWindow != null && mainWindow.MainContent.Content is Header header)
+                {
+                    if (header.MainContentHost.Content is Dashboard dashboard)
+                    {
+                        dashboard.LoadBookings();
+                        dashboard.UpdateCountsFromBookings();
+                        Logger.Log("Dashboard refreshed after luggage booking");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+            }
+        }
+
+        // Clear form after successful booking
+        private void ClearForm()
+        {
+            try
+            {
+                txtFirstName.Text = string.Empty;
+                txtLastName.Text = string.Empty;
+                txtPhone.Text = string.Empty;
+                txtIdNumber.Text = string.Empty;
+                cmbIdType.SelectedItem = idPlaceholder;
+                
+                // Clear luggage items
+                InitializeData();
+                
+                Logger.Log("Luggage form cleared");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
             }
         }
 
@@ -1488,19 +1588,10 @@ namespace UserModule.Views
                         errIdNumber1.Visibility = Visibility.Collapsed;
                     }
 
-                    // Move focus to the first luggage type cell in the grid
+                    // Move focus to locker count field
                     Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (LuggageGrid.Items.Count > 0)
-                        {
-                            var firstItem = LuggageGrid.Items[0];
-                            var lugTypeColIndex = GetColumnIndexByHeader(LuggageGrid, "Luggage Type");
-
-                            if (lugTypeColIndex >= 0)
-                            {
-                                NavigateToCell(LuggageGrid, firstItem, LuggageGrid.Columns[lugTypeColIndex]);
-                            }
-                        }
+                        txtLockerCount?.Focus();
                     }), System.Windows.Threading.DispatcherPriority.Render);
                 }
             }
@@ -1511,9 +1602,9 @@ namespace UserModule.Views
         }
 
         /// <summary>
-        /// Handle room count preview key down for Tab navigation
+        /// Handle locker count preview key down for Tab navigation
         /// </summary>
-        private void RoomCount_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void LockerCount_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             try
             {
@@ -1529,40 +1620,40 @@ namespace UserModule.Views
                 {
                     e.Handled = true;
 
-                    // Validate room count
-                    if (!ValidateRoomCount())
+                    // Validate locker count
+                    if (!ValidateLockerCount())
                     {
-                        if (errRoomCount != null)
-                            errRoomCount.Visibility = Visibility.Visible;
+                        if (errLockerCount != null)
+                            errLockerCount.Visibility = Visibility.Visible;
                         return;
                     }
                     else
                     {
-                        if (errRoomCount != null)
-                            errRoomCount.Visibility = Visibility.Collapsed;
+                        if (errLockerCount != null)
+                            errLockerCount.Visibility = Visibility.Collapsed;
                     }
 
                     // Null-safety check before focusing
-                    if (txtRoomNumbers == null)
+                    if (txtLockerNumbers == null)
                         return;
 
-                    // Move focus to room number field
+                    // Move focus to locker number field
                     Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        txtRoomNumbers?.Focus();
+                        txtLockerNumbers?.Focus();
                     }), System.Windows.Threading.DispatcherPriority.Render);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomCount_PreviewKeyDown: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerCount_PreviewKeyDown: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Handle room number preview key down for Tab navigation
+        /// Handle locker number preview key down for Tab navigation
         /// </summary>
-        private void RoomNumber_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void LockerNumber_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             try
             {
@@ -1579,41 +1670,41 @@ namespace UserModule.Views
                     e.Handled = true;
 
                     // Null-safety checks
-                    if (roomNumberPopup == null || lstRoomNumbers == null)
+                    if (lockerNumberPopup == null || lstLockerNumbers == null)
                         return;
 
-                    if (!roomNumberPopup.IsOpen)
+                    if (!lockerNumberPopup.IsOpen)
                     {
                         // First Enter: Open the popup
-                        if (ValidateRoomCount())
+                        if (ValidateLockerCount())
                         {
                             // Ensure items are populated before opening
-                            EnsureRoomNumbersPopulated();
-                            roomNumberPopup.IsOpen = true;
+                            EnsureLockerNumbersPopulated();
+                            lockerNumberPopup.IsOpen = true;
                             System.Diagnostics.Debug.WriteLine("Enter pressed - popup opened");
                         }
-                        else if (errRoomCount != null)
+                        else if (errLockerCount != null)
                         {
-                            errRoomCount.Visibility = Visibility.Visible;
+                            errLockerCount.Visibility = Visibility.Visible;
                         }
                     }
                     else
                     {
                         // Second Enter: Close popup and move to luggage grid
-                        roomNumberPopup.IsOpen = false;
+                        lockerNumberPopup.IsOpen = false;
                         System.Diagnostics.Debug.WriteLine("Enter pressed - popup closed, moving to luggage grid");
 
-                        // Validate at least one room is selected
-                        if (lstRoomNumbers.SelectedItems.Count == 0)
+                        // Validate at least one locker is selected
+                        if (lstLockerNumbers.SelectedItems.Count == 0)
                         {
-                            if (errRoomNumber != null)
-                                errRoomNumber.Visibility = Visibility.Visible;
+                            if (errLockerNumber != null)
+                                errLockerNumber.Visibility = Visibility.Visible;
                             return;
                         }
                         else
                         {
-                            if (errRoomNumber != null)
-                                errRoomNumber.Visibility = Visibility.Collapsed;
+                            if (errLockerNumber != null)
+                                errLockerNumber.Visibility = Visibility.Collapsed;
                         }
 
                         // Null-safety check for LuggageGrid
@@ -1652,227 +1743,253 @@ namespace UserModule.Views
                 else if (e.Key == Key.Escape)
                 {
                     // Escape key: Close popup
-                    if (roomNumberPopup != null && roomNumberPopup.IsOpen)
+                    if (lockerNumberPopup != null && lockerNumberPopup.IsOpen)
                     {
-                        roomNumberPopup.IsOpen = false;
+                        lockerNumberPopup.IsOpen = false;
                         e.Handled = true;
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomNumber_PreviewKeyDown: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumber_PreviewKeyDown: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Handle room count text changed - validate and populate room numbers
+        /// Handle locker count text changed - validate and populate locker numbers
         /// </summary>
-        private void RoomCount_TextChanged(object sender, TextChangedEventArgs e)
+        private void LockerCount_TextChanged(object sender, TextChangedEventArgs e)
         {
             try
             {
                 // Null-safety check
-                if (errRoomCount != null)
-                    errRoomCount.Visibility = Visibility.Collapsed;
+                if (errLockerCount != null)
+                    errLockerCount.Visibility = Visibility.Collapsed;
 
                 // Null-safety checks for ListBox controls
-                if (lstRoomNumbers == null)
+                if (lstLockerNumbers == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("ERROR: lstRoomNumbers is NULL in RoomCount_TextChanged");
+                    System.Diagnostics.Debug.WriteLine("ERROR: lstLockerNumbers is NULL in LockerCount_TextChanged");
                     return;
                 }
 
-                // Clear existing room numbers and selections
-                lstRoomNumbers.Items.Clear();
-                lstRoomNumbers.SelectedItems.Clear();
-                if (txtRoomNumbers != null)
-                    txtRoomNumbers.Text = string.Empty;
+                // Clear existing locker numbers and selections
+                lstLockerNumbers.Items.Clear();
+                lstLockerNumbers.SelectedItems.Clear();
+                if (txtLockerNumbers != null)
+                    txtLockerNumbers.Text = string.Empty;
 
-                if (string.IsNullOrWhiteSpace(txtRoomCount.Text))
+                if (string.IsNullOrWhiteSpace(txtLockerCount.Text))
                 {
-                    System.Diagnostics.Debug.WriteLine("Room count is empty - not populating rooms");
+                    System.Diagnostics.Debug.WriteLine("Locker count is empty - not populating lockers");
                     return;
                 }
 
-                if (!int.TryParse(txtRoomCount.Text, out int roomCount))
+                if (!int.TryParse(txtLockerCount.Text, out int lockerCount))
                 {
-                    if (errRoomCount != null)
-                        errRoomCount.Visibility = Visibility.Visible;
-                    System.Diagnostics.Debug.WriteLine($"Invalid room count: {txtRoomCount.Text}");
+                    if (errLockerCount != null)
+                        errLockerCount.Visibility = Visibility.Visible;
+                    System.Diagnostics.Debug.WriteLine($"Invalid locker count: {txtLockerCount.Text}");
                     return;
                 }
 
-                // Validate room count range
-                if (roomCount < 1 || roomCount > 60)
+                // Validate locker count range
+                if (lockerCount < 1 || lockerCount > 60)
                 {
-                    if (errRoomCount != null)
-                        errRoomCount.Visibility = Visibility.Visible;
-                    System.Diagnostics.Debug.WriteLine($"Room count out of range: {roomCount}");
+                    if (errLockerCount != null)
+                        errLockerCount.Visibility = Visibility.Visible;
+                    System.Diagnostics.Debug.WriteLine($"Locker count out of range: {lockerCount}");
                     return;
                 }
 
-                // Populate room numbers from 1 to 60 (total available rooms)
+                // Populate locker numbers from 1 to 60 (total available lockers)
                 for (int i = 1; i <= 60; i++)
                 {
-                    lstRoomNumbers.Items.Add($"Room {i}");
+                    lstLockerNumbers.Items.Add($"Locker {i}");
                 }
 
-                System.Diagnostics.Debug.WriteLine($"✓ Successfully populated {lstRoomNumbers.Items.Count} room options (user can select up to {roomCount} rooms)");
+                System.Diagnostics.Debug.WriteLine($"✓ Successfully populated {lstLockerNumbers.Items.Count} locker options (user can select up to {lockerCount} lockers)");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"ERROR in RoomCount_TextChanged: {ex.Message}");
-                if (errRoomCount != null)
-                    errRoomCount.Visibility = Visibility.Visible;
+                System.Diagnostics.Debug.WriteLine($"ERROR in LockerCount_TextChanged: {ex.Message}");
+                if (errLockerCount != null)
+                    errLockerCount.Visibility = Visibility.Visible;
             }
         }
 
         /// <summary>
-        /// Handle room number border mouse enter to open popup on hover
+        /// Handle locker number border mouse enter to open popup on hover
         /// </summary>
-        private void RoomNumberBorder_MouseEnter(object sender, MouseEventArgs e)
+        private void LockerNumberBorder_MouseEnter(object sender, MouseEventArgs e)
         {
             try
             {
-                // Only open if room count is valid and popup is not already open
-                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null && !roomNumberPopup.IsOpen)
+                // Only open if locker count is valid and popup is not already open
+                if (ValidateLockerCount() && lockerNumberPopup != null && lstLockerNumbers != null && !lockerNumberPopup.IsOpen)
                 {
                     // Ensure items are populated before opening
-                    EnsureRoomNumbersPopulated();
-                    roomNumberPopup.IsOpen = true;
+                    EnsureLockerNumbersPopulated();
+                    lockerNumberPopup.IsOpen = true;
                     
-                    System.Diagnostics.Debug.WriteLine("Room numbers field hovered - popup opened");
+                    System.Diagnostics.Debug.WriteLine("Locker numbers field hovered - popup opened");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomNumberBorder_MouseEnter: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumberBorder_MouseEnter: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Handle room numbers mouse down to open popup
+        /// Handle locker numbers preview mouse down to toggle popup
         /// </summary>
-        private void RoomNumbers_MouseDown(object sender, MouseButtonEventArgs e)
+        private void LockerNumbers_MouseDown(object sender, MouseButtonEventArgs e)
         {
             try
             {
+                // Check if the click is on the arrow button (let it handle the click)
+                if (e.OriginalSource is Path || 
+                    (e.OriginalSource is DependencyObject source && FindVisualParent<Button>(source) != null))
+                {
+                    // Don't handle here, let the button handle it
+                    return;
+                }
+                
                 // Prevent the event from bubbling
                 e.Handled = true;
                 
-                // Only open if room count is valid
-                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null)
+                // Only toggle if locker count is valid
+                if (ValidateLockerCount() && lockerNumberPopup != null && lstLockerNumbers != null)
                 {
-                    // Ensure items are populated before opening
-                    EnsureRoomNumbersPopulated();
-                    
-                    // Toggle the popup
-                    if (!roomNumberPopup.IsOpen)
+                    // Toggle the popup - close if open, open if closed
+                    if (lockerNumberPopup.IsOpen)
                     {
-                        roomNumberPopup.IsOpen = true;
-                        System.Diagnostics.Debug.WriteLine("Room numbers textbox clicked - popup opened");
+                        lockerNumberPopup.IsOpen = false;
+                        System.Diagnostics.Debug.WriteLine("Locker numbers textbox clicked - popup closed");
+                    }
+                    else
+                    {
+                        // Ensure items are populated before opening
+                        EnsureLockerNumbersPopulated();
+                        lockerNumberPopup.IsOpen = true;
+                        System.Diagnostics.Debug.WriteLine("Locker numbers textbox clicked - popup opened");
                     }
                 }
                 else
                 {
-                    if (errRoomCount != null)
-                        errRoomCount.Visibility = Visibility.Visible;
+                    if (errLockerCount != null)
+                        errLockerCount.Visibility = Visibility.Visible;
                     
-                    MessageBox.Show("Please enter a valid room count (1-60) first.", 
-                        "Room Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Please enter a valid locker count (1-60) first.", 
+                        "Locker Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomNumbers_MouseDown: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumbers_MouseDown: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Handle dropdown button click to open room selection popup
+        /// Handle dropdown button click to toggle locker selection popup
         /// </summary>
-        private void RoomNumberDropdown_Click(object sender, RoutedEventArgs e)
+        private void LockerNumberDropdown_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Only open if room count is valid
-                if (ValidateRoomCount() && roomNumberPopup != null && lstRoomNumbers != null)
+                // Prevent event from bubbling to avoid double-toggle
+                e.Handled = true;
+                
+                // Only toggle if locker count is valid
+                if (ValidateLockerCount() && lockerNumberPopup != null && lstLockerNumbers != null)
                 {
-                    // Ensure items are populated before opening
-                    EnsureRoomNumbersPopulated();
-                    
-                    // Toggle the popup
-                    roomNumberPopup.IsOpen = !roomNumberPopup.IsOpen;
-                    
-                    System.Diagnostics.Debug.WriteLine($"Room dropdown clicked - Popup is now {(roomNumberPopup.IsOpen ? "open" : "closed")}");
+                    // Toggle the popup - close if open, open if closed
+                    if (lockerNumberPopup.IsOpen)
+                    {
+                        lockerNumberPopup.IsOpen = false;
+                        System.Diagnostics.Debug.WriteLine("Locker dropdown clicked - popup closed");
+                    }
+                    else
+                    {
+                        // Ensure items are populated before opening
+                        EnsureLockerNumbersPopulated();
+                        lockerNumberPopup.IsOpen = true;
+                        System.Diagnostics.Debug.WriteLine("Locker dropdown clicked - popup opened");
+                    }
                 }
                 else
                 {
-                    // Show error if room count is not valid
-                    if (errRoomCount != null)
-                        errRoomCount.Visibility = Visibility.Visible;
+                    // Show error if locker count is not valid
+                    if (errLockerCount != null)
+                        errLockerCount.Visibility = Visibility.Visible;
                     
-                    MessageBox.Show("Please enter a valid room count (1-60) first.", 
-                        "Room Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Please enter a valid locker count (1-60) first.", 
+                        "Locker Count Required", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomNumberDropdown_Click: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumberDropdown_Click: {ex.Message}");
             }
         }
 
-        private bool ValidateRoomCount()
+        private bool ValidateLockerCount()
         {
             try
             {
-                if (txtRoomCount == null || string.IsNullOrWhiteSpace(txtRoomCount.Text))
+                if (txtLockerCount == null || string.IsNullOrWhiteSpace(txtLockerCount.Text))
                     return false;
 
-                if (!int.TryParse(txtRoomCount.Text, out int roomCount))
+                if (!int.TryParse(txtLockerCount.Text, out int lockerCount))
                     return false;
 
-                return roomCount >= 1 && roomCount <= 60;
+                return lockerCount >= 1 && lockerCount <= 60;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in ValidateRoomCount: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in ValidateLockerCount: {ex.Message}");
                 return false;
             }
         }
 
-        private void EnsureRoomNumbersPopulated()
+        private void EnsureLockerNumbersPopulated()
         {
             try
             {
-                if (lstRoomNumbers == null || txtRoomCount == null)
+                if (lstLockerNumbers == null || txtLockerCount == null)
                     return;
 
-                if (lstRoomNumbers.Items.Count != 60)
+                // Generate locker list if not already done
+                if (allLockers.Count != 60)
                 {
-                    var currentSelections = new System.Collections.Generic.List<string>();
-                    if (lstRoomNumbers.SelectedItems.Count > 0)
-                    {
-                        currentSelections.AddRange(lstRoomNumbers.SelectedItems.Cast<string>());
-                    }
-
-                    lstRoomNumbers.Items.Clear();
-                    
+                    allLockers.Clear();
                     for (int i = 1; i <= 60; i++)
                     {
-                        lstRoomNumbers.Items.Add($"Room {i}");
+                        allLockers.Add($"Locker {i}");
+                    }
+                }
+
+                // Populate list if empty or needs refresh
+                if (lstLockerNumbers.Items.Count == 0)
+                {
+                    lstLockerNumbers.Items.Clear();
+                    foreach (var locker in allLockers)
+                    {
+                        lstLockerNumbers.Items.Add(locker);
                     }
 
-                    if (currentSelections.Count > 0)
+                    // Restore previously selected items
+                    if (selectedLockersList.Count > 0)
                     {
-                        foreach (var selection in currentSelections)
+                        foreach (var selection in selectedLockersList)
                         {
-                            var item = lstRoomNumbers.Items.Cast<string>()
+                            var item = lstLockerNumbers.Items.Cast<string>()
                                 .FirstOrDefault(s => s == selection);
                             if (item != null)
                             {
-                                lstRoomNumbers.SelectedItems.Add(item);
+                                lstLockerNumbers.SelectedItems.Add(item);
                             }
                         }
                     }
@@ -1880,51 +1997,261 @@ namespace UserModule.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in EnsureRoomNumbersPopulated: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in EnsureLockerNumbersPopulated: {ex.Message}");
             }
         }
 
-        private void RoomNumbers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void LockerNumbers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             try
             {
-                if (lstRoomNumbers == null || txtRoomNumbers == null || txtRoomCount == null)
+                if (lstLockerNumbers == null || txtLockerNumbers == null || txtLockerCount == null)
                     return;
 
-                if (!int.TryParse(txtRoomCount.Text, out int maxRoomCount))
+                if (!int.TryParse(txtLockerCount.Text, out int maxLockerCount))
                     return;
 
-                if (lstRoomNumbers.SelectedItems.Count > maxRoomCount)
+                if (lstLockerNumbers.SelectedItems.Count > maxLockerCount)
                 {
                     if (e.AddedItems.Count > 0)
                     {
-                        lstRoomNumbers.SelectedItems.Remove(e.AddedItems[0]);
-                        MessageBox.Show($"You can only select up to {maxRoomCount} rooms based on the room count.",
+                        lstLockerNumbers.SelectedItems.Remove(e.AddedItems[0]);
+                        MessageBox.Show($"You can only select up to {maxLockerCount} lockers based on the locker count.",
                             "Selection Limit", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     return;
                 }
 
-                if (lstRoomNumbers.SelectedItems.Count > 0)
+                // Store selected items
+                selectedLockersList.Clear();
+                selectedLockersList.AddRange(lstLockerNumbers.SelectedItems.Cast<string>());
+
+                if (lstLockerNumbers.SelectedItems.Count > 0)
                 {
-                    var selectedRooms = lstRoomNumbers.SelectedItems.Cast<string>()
-                        .Select(s => s.Replace("Room ", ""))
-                        .OrderBy(int.Parse)
+                    var selectedLockers = lstLockerNumbers.SelectedItems.Cast<string>()
+                        .Select(s => s.Replace("Locker ", ""))
+                        .Select(int.Parse)
+                        .OrderBy(n => n)
                         .ToList();
                     
-                    txtRoomNumbers.Text = string.Join(", ", selectedRooms.Select(r => $"Room {r}"));
+                    txtLockerNumbers.Text = string.Join(", ", selectedLockers.Select(n => n.ToString()));
                     
-                    if (errRoomNumber != null)
-                        errRoomNumber.Visibility = Visibility.Collapsed;
+                    // Update count display
+                    if (txtLockerCount_Display != null)
+                    {
+                        txtLockerCount_Display.Text = $"({lstLockerNumbers.SelectedItems.Count} selected)";
+                        txtLockerCount_Display.Visibility = Visibility.Visible;
+                    }
+                    
+                    if (errLockerNumber != null)
+                        errLockerNumber.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    txtRoomNumbers.Text = string.Empty;
+                    txtLockerNumbers.Text = string.Empty;
+                    
+                    // Hide count display when nothing selected
+                    if (txtLockerCount_Display != null)
+                    {
+                        txtLockerCount_Display.Visibility = Visibility.Collapsed;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in RoomNumbers_SelectionChanged: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumbers_SelectionChanged: {ex.Message}");
+            }
+        }
+
+        private void LockerSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                if (txtLockerSearch == null || lstLockerNumbers == null)
+                    return;
+
+                // Normalize search text: remove spaces, make lowercase
+                string searchText = txtLockerSearch.Text.Trim().Replace(" ", "").ToLower();
+
+                // Store current selections before clearing
+                var currentSelections = lstLockerNumbers.SelectedItems.Cast<string>().ToList();
+
+                // Clear and repopulate with filtered items
+                lstLockerNumbers.Items.Clear();
+
+                if (string.IsNullOrWhiteSpace(searchText))
+                {
+                    // Show all lockers if search is empty
+                    foreach (var locker in allLockers)
+                    {
+                        lstLockerNumbers.Items.Add(locker);
+                    }
+                }
+                else
+                {
+                    // Filter and sort lockers: exact number matches first, then partial matches
+                    var filtered = allLockers
+                        .Where(locker =>
+                        {
+                            string lockerLower = locker.ToLower().Replace(" ", "");
+                            string lockerNumber = locker.Replace("Locker ", "");
+                            return lockerLower.Contains(searchText) || lockerNumber.Contains(searchText);
+                        })
+                        .OrderBy(locker =>
+                        {
+                            string lockerNumber = locker.Replace("Locker ", "");
+                            // Exact number match gets priority 0, partial matches get priority 1
+                            if (lockerNumber.Equals(searchText, StringComparison.OrdinalIgnoreCase))
+                                return 0;
+                            // Number starts with search text gets priority 1
+                            else if (lockerNumber.StartsWith(searchText, StringComparison.OrdinalIgnoreCase))
+                                return 1;
+                            // Other matches get priority 2
+                            else
+                                return 2;
+                        })
+                        .ThenBy(locker =>
+                        {
+                            // Then sort by numeric value
+                            string lockerNumber = locker.Replace("Locker ", "");
+                            return int.TryParse(lockerNumber, out int num) ? num : 999;
+                        })
+                        .ToList();
+
+                    foreach (var locker in filtered)
+                    {
+                        lstLockerNumbers.Items.Add(locker);
+                    }
+                }
+
+                // Restore selections that are still visible
+                foreach (var selection in currentSelections)
+                {
+                    var item = lstLockerNumbers.Items.Cast<string>()
+                        .FirstOrDefault(s => s == selection);
+                    if (item != null)
+                    {
+                        lstLockerNumbers.SelectedItems.Add(item);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in LockerSearch_TextChanged: {ex.Message}");
+            }
+        }
+
+        private void LockerNumberPopup_Opened(object sender, EventArgs e)
+        {
+            try
+            {
+                // Focus the search box when popup opens for easy typing
+                if (txtLockerSearch != null)
+                {
+                    txtLockerSearch.Clear();
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        txtLockerSearch.Focus();
+                        Keyboard.Focus(txtLockerSearch);
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in LockerNumberPopup_Opened: {ex.Message}");
+            }
+        }
+
+        private void LockerSearch_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                if (e.Key == Key.Escape)
+                {
+                    // Close popup on Escape
+                    if (lockerNumberPopup != null)
+                    {
+                        lockerNumberPopup.IsOpen = false;
+                        e.Handled = true;
+                    }
+                }
+                else if (e.Key == Key.Enter)
+                {
+                    // Add first visible locker on Enter
+                    AddFirstVisibleLocker();
+                    e.Handled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in LockerSearch_PreviewKeyDown: {ex.Message}");
+            }
+        }
+
+        private void AddLockerNumber_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AddFirstVisibleLocker();
+                
+                // Keep the popup open by reopening it if it closed
+                if (lockerNumberPopup != null && !lockerNumberPopup.IsOpen)
+                {
+                    lockerNumberPopup.IsOpen = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in AddLockerNumber_Click: {ex.Message}");
+            }
+        }
+
+        private void AddFirstVisibleLocker()
+        {
+            try
+            {
+                if (lstLockerNumbers == null || lstLockerNumbers.Items.Count == 0)
+                    return;
+
+                // Get the first visible item
+                var firstItem = lstLockerNumbers.Items[0] as string;
+                if (firstItem != null)
+                {
+                    // Check if it's already selected
+                    if (!lstLockerNumbers.SelectedItems.Contains(firstItem))
+                    {
+                        // Add to selection
+                        lstLockerNumbers.SelectedItems.Add(firstItem);
+                    }
+                }
+
+                // Clear the search box and refocus it
+                if (txtLockerSearch != null)
+                {
+                    txtLockerSearch.Clear();
+                    txtLockerSearch.Focus();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in AddFirstVisibleLocker: {ex.Message}");
+            }
+        }
+
+        private void CloseLockerPopup_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Clear the search box to show all lockers again
+                if (txtLockerSearch != null)
+                {
+                    txtLockerSearch.Clear();
+                    txtLockerSearch.Focus();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in CloseLockerPopup_Click: {ex.Message}");
             }
         }
 
@@ -2115,6 +2442,22 @@ namespace UserModule.Views
         private void RoomNumber_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Placeholder for backward compatibility
+        }
+
+        /// <summary>
+        /// Helper method to find a parent element of a specific type in the visual tree
+        /// </summary>
+        private T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject? parentObject = VisualTreeHelper.GetParent(child);
+
+            if (parentObject == null)
+                return null;
+
+            if (parentObject is T parent)
+                return parent;
+
+            return FindVisualParent<T>(parentObject);
         }
 
         /// <summary>

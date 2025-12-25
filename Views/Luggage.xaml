@@ -450,19 +450,19 @@
                                    Grid.Row="0"
                                    Margin="0,0,0,14"/>
 
-                        <!-- 1 Row, 2 Columns Grid for Room Count and Room Number -->
+                        <!-- 1 Row, 2 Columns Grid for Locker Count and Locker Number -->
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Column 0: Room Count -->
+                            <!-- Column 0: Locker Count -->
                             <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                <TextBlock Text="Room Count" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
-                                <TextBox x:Name="txtRoomCount"
+                                <TextBlock Text="Locker Count" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtLockerCount"
                                      Style="{StaticResource RoundedWatermarkTextBoxStyle}"
-                                     Tag="Enter room count (Max: 60)"
+                                     Tag="Enter locker count "
                                      Foreground="Black" 
                                      FontWeight="DemiBold"
                                      Height="40"
@@ -470,19 +470,19 @@
                                      MaxLength="2"
                                      PreviewTextInput="NumbersOnly_PreviewTextInput"
                                      DataObject.Pasting="NumbersOnly_Pasting"
-                                     PreviewKeyDown="RoomCount_PreviewKeyDown"
-                                     TextChanged="RoomCount_TextChanged"/>
-                                <TextBlock x:Name="errRoomCount" 
-                                       Text="* Room count must be between 1 and 60" 
+                                     PreviewKeyDown="LockerCount_PreviewKeyDown"
+                                     TextChanged="LockerCount_TextChanged"/>
+                                <TextBlock x:Name="errLockerCount" 
+                                       Text="* Locker count must be between 1 and 60" 
                                        Foreground="#CC1F1F" 
                                        FontSize="12" 
                                        Visibility="Collapsed" 
                                        Margin="5,2,0,0"/>
                             </StackPanel>
 
-                            <!-- Column 1: Room Number (Multiple Selection) -->
+                            <!-- Column 1: Locker Number (Multiple Selection) -->
                             <StackPanel Grid.Column="1" Margin="15,0,0,0">
-                                <TextBlock Text="Room Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
+                                <TextBlock Text="Locker Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
                                 <Grid>
                                     <!-- TextBox with dropdown arrow button -->
                                     <Border BorderBrush="#999999"
@@ -490,28 +490,33 @@
                                             CornerRadius="4"
                                             Background="White"
                                             Height="40"
-                                            MouseEnter="RoomNumberBorder_MouseEnter">
+                                            MouseEnter="LockerNumberBorder_MouseEnter">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="30"/>
                                             </Grid.ColumnDefinitions>
                                             
-                                            <!-- TextBox for displaying selected rooms -->
-                                            <TextBox x:Name="txtRoomNumbers"
-                                                     Grid.Column="0"
-                                                     BorderThickness="0"
-                                                     Background="Transparent"
-                                                     Padding="12,0"
-                                                     FontSize="16"
-                                                     VerticalContentAlignment="Center"
-                                                     Foreground="Black"
-                                                     FontWeight="DemiBold"
-                                                     IsReadOnly="True"
-                                                     PreviewKeyDown="RoomNumber_PreviewKeyDown"
-                                                     PreviewMouseDown="RoomNumbers_MouseDown"
-                                                     Cursor="Hand"
-                                                     ToolTip="Hover or click to select rooms">
+                                            <!-- TextBox for displaying selected lockers with count -->
+                                            <Grid Grid.Column="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="txtLockerNumbers"
+                                                         Grid.Column="0"
+                                                         BorderThickness="0"
+                                                         Background="Transparent"
+                                                         Padding="12,0,5,0"
+                                                         FontSize="16"
+                                                         VerticalContentAlignment="Center"
+                                                         Foreground="Black"
+                                                         FontWeight="DemiBold"
+                                                         IsReadOnly="True"
+                                                         PreviewKeyDown="LockerNumber_PreviewKeyDown"
+                                                         PreviewMouseDown="LockerNumbers_MouseDown"
+                                                         Cursor="Hand"
+                                                         ToolTip="Hover or click to select lockers">
                                                 <TextBox.Style>
                                                     <Style TargetType="TextBox">
                                                         <Setter Property="Template">
@@ -521,7 +526,7 @@
                                                                         <ScrollViewer x:Name="PART_ContentHost"
                                                                                       VerticalAlignment="Center"/>
                                                                         <TextBlock x:Name="Watermark"
-                                                                                   Text="Select room numbers"
+                                                                                   Text="Select locker numbers"
                                                                                    Foreground="#999"
                                                                                    Margin="12,0,0,0"
                                                                                    VerticalAlignment="Center"
@@ -543,14 +548,24 @@
                                                     </Style>
                                                 </TextBox.Style>
                                             </TextBox>
+                                            <!-- Count indicator -->
+                                            <TextBlock x:Name="txtLockerCount_Display"
+                                                       Grid.Column="1"
+                                                       Foreground="#666"
+                                                       FontSize="13"
+                                                       FontWeight="Normal"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,8,0"
+                                                       Visibility="Collapsed"/>
+                                        </Grid>
                                             
                                             <!-- Dropdown arrow button -->
                                             <Button Grid.Column="1"
                                                     Background="Transparent"
                                                     BorderThickness="0"
                                                     Cursor="Hand"
-                                                    ToolTip="Open room selection"
-                                                    Click="RoomNumberDropdown_Click"
+                                                    ToolTip="Open locker selection"
+                                                    Click="LockerNumberDropdown_Click"
                                                     Focusable="False">
                                                 <Button.Style>
                                                     <Style TargetType="Button">
@@ -582,29 +597,143 @@
                                         </Grid>
                                     </Border>
                                     
-                                    <!-- Popup for room selection -->
-                                    <Popup x:Name="roomNumberPopup"
-                                           PlacementTarget="{Binding ElementName=txtRoomNumbers}"
+                                    <!-- Popup for locker selection -->
+                                    <Popup x:Name="lockerNumberPopup"
+                                           PlacementTarget="{Binding ElementName=txtLockerNumbers}"
                                            Placement="Bottom"
                                            StaysOpen="False"
-                                           AllowsTransparency="True"
                                            Width="400"
-                                           PopupAnimation="Slide">
+                                           Opened="LockerNumberPopup_Opened">
                                         <Border Background="White"
                                                 BorderBrush="#999999"
                                                 BorderThickness="1"
                                                 CornerRadius="4"
-                                                MaxHeight="250"
-                                                MinHeight="100">
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                                          HorizontalScrollBarVisibility="Disabled">
-                                                <ListBox x:Name="lstRoomNumbers"
-                                                         SelectionMode="Multiple"
-                                                         Background="White"
-                                                         BorderThickness="0"
-                                                         Padding="4"
-                                                         MinHeight="100"
-                                                         SelectionChanged="RoomNumbers_SelectionChanged">
+                                                MaxHeight="300"
+                                                MinHeight="150">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                
+                                                <!-- Search box at top -->
+                                                <Border Grid.Row="0"
+                                                        Background="#F8F9FA"
+                                                        BorderBrush="#E0E0E0"
+                                                        BorderThickness="0,0,0,1"
+                                                        Padding="10,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox x:Name="txtLockerSearch"
+                                                                 Grid.Column="0"
+                                                                 Height="32"
+                                                                 Padding="8,0"
+                                                                 FontSize="14"
+                                                                 Foreground="#333"
+                                                                 Background="White"
+                                                                 BorderBrush="#CCC"
+                                                                 BorderThickness="1"
+                                                                 VerticalContentAlignment="Center"
+                                                                 TextChanged="LockerSearch_TextChanged"
+                                                                 PreviewKeyDown="LockerSearch_PreviewKeyDown">
+                                                        <TextBox.Style>
+                                                            <Style TargetType="TextBox">
+                                                                <Setter Property="Template">
+                                                                    <Setter.Value>
+                                                                        <ControlTemplate TargetType="TextBox">
+                                                                            <Border Background="{TemplateBinding Background}"
+                                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                    CornerRadius="3">
+                                                                                <Grid>
+                                                                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                                                                  Margin="8,0"
+                                                                                                  VerticalAlignment="Center"/>
+                                                                                    <TextBlock x:Name="Watermark"
+                                                                                               Text="Search locker..."
+                                                                                               Foreground="#999"
+                                                                                               Margin="8,0"
+                                                                                               VerticalAlignment="Center"
+                                                                                               IsHitTestVisible="False"
+                                                                                               Visibility="Collapsed"/>
+                                                                                </Grid>
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <MultiTrigger>
+                                                                                    <MultiTrigger.Conditions>
+                                                                                        <Condition Property="Text" Value=""/>
+                                                                                    </MultiTrigger.Conditions>
+                                                                                    <Setter TargetName="Watermark" Property="Visibility" Value="Visible"/>
+                                                                                </MultiTrigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Style>
+                                                        </TextBox.Style>
+                                                    </TextBox>
+                                                    <Button Grid.Column="1"
+                                                            Content="Add"
+                                                            Margin="8,0,0,0"
+                                                            Padding="16,6"
+                                                            Height="32"
+                                                            FontSize="13"
+                                                            FontWeight="SemiBold"
+                                                            Foreground="White"
+                                                            Background="#4CAF50"
+                                                            BorderThickness="0"
+                                                            Cursor="Hand"
+                                                            Click="AddLockerNumber_Click">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Setter Property="Template">
+                                                                    <Setter.Value>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border Background="{TemplateBinding Background}"
+                                                                                    CornerRadius="3"
+                                                                                    Padding="{TemplateBinding Padding}">
+                                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                                  VerticalAlignment="Center"/>
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter Property="Background" Value="#45A049"/>
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsPressed" Value="True">
+                                                                                    <Setter Property="Background" Value="#3D8B40"/>
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
+                                                </Grid>
+                                                </Border>
+                                                
+                                                <!-- Locker list with virtualization -->
+                                                <ScrollViewer Grid.Row="1"
+                                                              VerticalScrollBarVisibility="Auto"
+                                                              HorizontalScrollBarVisibility="Disabled">
+                                                    <ListBox x:Name="lstLockerNumbers"
+                                                             SelectionMode="Multiple"
+                                                             Background="White"
+                                                             BorderThickness="0"
+                                                             Padding="4"
+                                                             MinHeight="100"
+                                                             VirtualizingPanel.IsVirtualizing="True"
+                                                             VirtualizingPanel.VirtualizationMode="Recycling"
+                                                             ScrollViewer.CanContentScroll="True"
+                                                             SelectionChanged="LockerNumbers_SelectionChanged">
+                                                        <ListBox.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <VirtualizingStackPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ListBox.ItemsPanel>
                                                     <ListBox.ItemContainerStyle>
                                                         <Style TargetType="ListBoxItem">
                                                             <Setter Property="Padding" Value="10,8"/>
@@ -627,11 +756,12 @@
                                                     </ListBox.ItemContainerStyle>
                                                 </ListBox>
                                             </ScrollViewer>
-                                        </Border>
-                                    </Popup>
+                                        </Grid>
+                                    </Border>
+                                </Popup>
                                 </Grid>
-                                <TextBlock x:Name="errRoomNumber" 
-                                       Text="* Select at least one room number" 
+                                <TextBlock x:Name="errLockerNumber" 
+                                       Text="* Select at least one locker number" 
                                        Foreground="#CC1F1F" 
                                        FontSize="12" 
                                        Visibility="Collapsed" 
@@ -888,7 +1018,7 @@
                 </Border>
 
                 <!-- Submit / Cancel Buttons -->
-                <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,40,0,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                         <Button x:Name="GenerateBillButton" Content="Generate Bill" Width="249" Height="40" Background="#232323" Foreground="white" FontSize="16" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0" Click="GenerateBill_Click"/>
                         <Button Content="Cancel" Width="243" Height="40" Background="#BDBCBC" Foreground="White" FontSize="16" FontWeight="SemiBold" BorderBrush="#999" BorderThickness="0" Cursor="Hand"/>
