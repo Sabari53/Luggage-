@@ -1045,29 +1045,61 @@ namespace UserModule.Views
                     var scrollViewer = FindVisualChild<ScrollViewer>(dataGrid);
                     if (scrollViewer != null)
                     {
-                        // Handle vertical scrolling
-                        if (e.Delta > 0)
+                        // Check if DataGrid needs scrolling
+                        if ((e.Delta > 0 && scrollViewer.VerticalOffset > 0) ||
+                            (e.Delta < 0 && scrollViewer.VerticalOffset < scrollViewer.ScrollableHeight))
                         {
-                            // Scroll up
-                            scrollViewer.LineUp();
-                            scrollViewer.LineUp();
-                            scrollViewer.LineUp();
+                            // DataGrid has scrollable content, handle it here
+                            if (e.Delta > 0)
+                            {
+                                // Scroll up
+                                scrollViewer.LineUp();
+                                scrollViewer.LineUp();
+                                scrollViewer.LineUp();
+                            }
+                            else
+                            {
+                                // Scroll down
+                                scrollViewer.LineDown();
+                                scrollViewer.LineDown();
+                                scrollViewer.LineDown();
+                            }
+                            e.Handled = true;
                         }
                         else
                         {
-                            // Scroll down
-                            scrollViewer.LineDown();
-                            scrollViewer.LineDown();
-                            scrollViewer.LineDown();
+                            // DataGrid doesn't need scrolling, let event bubble to MainScrollViewer
+                            e.Handled = false;
                         }
-
-                        e.Handled = true;
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error in LuggageGrid_PreviewMouseWheel: {ex.Message}");
+            }
+        }
+
+        // Handle mouse wheel scrolling on the main form ScrollViewer
+        private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            try
+            {
+                if (sender is ScrollViewer scrollViewer)
+                {
+                    // Calculate scroll amount based on wheel delta
+                    double scrollAmount = e.Delta > 0 ? -50 : 50; // Negative for up, positive for down
+                    
+                    // Scroll the main ScrollViewer
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollAmount);
+                    
+                    // Mark event as handled to prevent it from bubbling
+                    e.Handled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in MainScrollViewer_PreviewMouseWheel: {ex.Message}");
             }
         }
 
@@ -2083,6 +2115,30 @@ namespace UserModule.Views
         private void RoomNumber_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Placeholder for backward compatibility
+        }
+
+        /// <summary>
+        /// Handles mouse wheel scrolling for the entire UserControl's ScrollViewer
+        /// </summary>
+        private void UserControl_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            try
+            {
+                if (sender is ScrollViewer scrollViewer)
+                {
+                    // Calculate scroll amount based on wheel delta
+                    double scrollAmount = e.Delta > 0 ? -50 : 50;
+                    
+                    // Scroll the FormScrollViewer
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollAmount);
+                    
+                    e.Handled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in UserControl_PreviewMouseWheel: {ex.Message}");
+            }
         }
     }
 }

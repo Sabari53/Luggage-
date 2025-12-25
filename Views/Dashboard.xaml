@@ -171,52 +171,10 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Action Buttons - Right Aligned -->
+                    <!-- Action Buttons - Right Aligned (now empty - buttons moved to Header) -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                        <!-- Internet Status Indicator -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Internet Connection Status">
-                            <Ellipse x:Name="InternetStatusDot" 
-                                     Width="12" Height="12" 
-                                     Fill="Gray"
-                                     Stroke="White"
-                                     StrokeThickness="1"/>
-                            <TextBlock x:Name="InternetStatusText" 
-                                       Text="Checking..." 
-                                       Foreground="White" 
-                                       FontSize="11" 
-                                       Margin="6,0,0,0"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                        
-                        <StackPanel>
-
-                            <!-- Container for dynamic content -->
-
-                            <!-- Container for dynamic content -->
-
-                            <!-- Container for dynamic content -->
-                            <Button x:Name="ScanButton"
-                          Style="{StaticResource ActionButtonStyle}"
-                          Background="Black" Margin="0,0,0,0"
-                          Height="37" MinWidth="140"
-                          Click="ScanButton_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="/Assets/Images/Scan.png" Width="35" Height="35" Margin="0,0,10,0"/>
-                                    <TextBlock Text="Scan" Margin="0,6,8,0" FontSize="16" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-
-
                         <!-- Placeholder where UserControl will load -->
                         <ContentControl x:Name="MainContentArea"/>
-
-                        <Button x:Name="AddBookingButton"
-                                Style="{StaticResource ActionButtonStyle}"
-                                Background="#E8F2FF" Foreground="#1E71FB"
-                                MinWidth="120" Click="AddBookingButton_Click">
-                            <TextBlock Text="+ Add Booking" FontSize="14" TextTrimming="CharacterEllipsis" />
-                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;               // For Brush, Brushes, Colors, BrushConverter
-using System.Windows.Media.Effects;       // For DropShadowEffect
-using System.Windows.Threading;          // For DispatcherTimer
+using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Threading;
 
 
 namespace UserModule
@@ -15,6 +17,10 @@ namespace UserModule
     public partial class Header : UserControl
     {
         private Button? _selectedButton;
+        
+        // Internet status monitoring
+        private DispatcherTimer? internetCheckTimer;
+        private int consecutiveFailures = 0;
 
         public Header()
         {
@@ -24,11 +30,11 @@ namespace UserModule
             // Initially select Dashboard button
             _selectedButton = DashboardButton;
             SetSelectedButton(_selectedButton);
-
             
-
-
+            // Initialize internet status monitoring
+            InitializeInternetStatusMonitor();
         }
+
         public void SetLoggedInUser(string username)
         {
             // Capitalize first letter of username
@@ -91,11 +97,11 @@ namespace UserModule
             };
             timer.Start();
         }
+
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Show confirmation dialog
                 var result = MessageBox.Show(
                     "Are you sure you want to logout?", 
                     "Confirm Logout", 
@@ -104,41 +110,28 @@ namespace UserModule
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // Clear stored credentials from LocalStorage
                     LocalStorage.RemoveItem("username");
                     LocalStorage.RemoveItem("password");
                     LocalStorage.RemoveItem("workerId");
                     LocalStorage.RemoveItem("rememberMe");
                     
-                    // Log the logout action
                     Logger.Log($"User {UserNameTextBlock.Text} logged out successfully");
 
                     var mainWindow = Application.Current.MainWindow as MainWindow;
                     if (mainWindow != null)
                     {
-                        // Create a fresh Login UserControl
                         var loginControl = new Login();
 
-                        // Handle LoginSuccess to reload Header + Dashboard
                         loginControl.LoginSuccess += username =>
                         {
-                            // Create new Header inside the lambda
                             var header = new Header();
-
-                            // Set the logged-in user
                             header.SetLoggedInUser(username);
-
-                            // Load Dashboard inside Header's MainContentHost
                             header.MainContentHost.Content = new Dashboard();
-
-                            // Set MainContent of MainWindow to the new Header
                             mainWindow.MainContent.Content = header;
                         };
 
-                        // Replace current MainContent (Header + Dashboard) with Login
                         mainWindow.MainContent.Content = loginControl;
                         
-                        // Show logout success message
                         MessageBox.Show(
                             "You have been logged out successfully!", 
                             "Logout Successful", 
@@ -150,18 +143,9 @@ namespace UserModule
             catch (Exception ex)
             {
                 Logger.LogError(ex);
-                // MessageBox.Show(
-                //     "An error occurred during logout. Please try again.", 
-                //     "Logout Error", 
-                //     MessageBoxButton.OK, 
-                //     MessageBoxImage.Error);
             }
         }
 
-
-
-
-        // Ex
         public void LoadContent(UserControl control)
         {
             MainContentHost.Content = control;
@@ -169,18 +153,14 @@ namespace UserModule
 
         private void SetSelectedButton(Button button)
         {
-            // Prevent unnecessary restyle
             if (_selectedButton == button)
                 return;
 
-            // Reset previous selected button style (except Submit)
             if (_selectedButton != null && _selectedButton != SubmitBookingButton)
                 _selectedButton.Style = (Style)FindResource("HeaderButtonStyle");
 
-            // Update current button
             _selectedButton = button;
 
-            // Always keep Submit button in selected style
             if (button == SubmitBookingButton)
             {
                 SubmitBookingButton.Style = (Style)FindResource("HeaderButtonSelectedStyle");
@@ -194,45 +174,28 @@ namespace UserModule
         private void Dashboard_Click(object sender, RoutedEventArgs e)
         {
             SetSelectedButton(DashboardButton);
-            SetSubmitButtonVisibility(false); // Hide Submit button
+            SetSubmitButtonVisibility(false);
             LoadContent(new Dashboard());
-        }
-
-        private void NewBooking_Click(object sender, RoutedEventArgs e)
-        {
-            SetSelectedButton(NewBookingButton);
-            SetSubmitButtonVisibility(false); // Hide Submit button
-            var dashboard = MainContentGrid.Children.OfType<Dashboard>().FirstOrDefault() ?? new Dashboard();
-            LoadContent(new NewBooking(dashboard));
         }
 
         private void Booking_Click(object sender, RoutedEventArgs e)
         {
             SetSelectedButton(BookingButton);
-            SetSubmitButtonVisibility(false); // Hide Submit button
+            SetSubmitButtonVisibility(false);
             LoadContent(new UserModule.Views.Luggage());
-        }
-
-        public void OpenNewBooking()
-        {
-            SetSelectedButton(NewBookingButton);
-            SetSubmitButtonVisibility(false); // Hide Submit button
-            var dashboard = MainContentGrid.Children.OfType<Dashboard>().FirstOrDefault() ?? new Dashboard();
-            LoadContent(new NewBooking(dashboard));
         }
 
         public void OpenBooking()
         {
             SetSelectedButton(BookingButton);
-            SetSubmitButtonVisibility(false); // Hide Submit button
+            SetSubmitButtonVisibility(false);
             LoadContent(new UserModule.Views.Luggage());
         }
 
         private void Submit_Click(object sender, RoutedEventArgs e)
         {
-            // Submit button should always appear selected
             SubmitBookingButton.Style = (Style)FindResource("HeaderButtonSelectedStyle");
-            SetSubmitButtonVisibility(true); // Show Submit button
+            SetSubmitButtonVisibility(true);
             SetSelectedButton(SubmitBookingButton);
             LoadContent(new Submit());
         }
@@ -242,15 +205,11 @@ namespace UserModule
             UserNameTextBlock.Text = username;
         }
 
-        // Controls Submit button visibility in Header
         public void SetSubmitButtonVisibility(bool isVisible)
         {
             SubmitBookingButton.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        /// <summary>
-        /// Gets a greeting message based on the current time
-        /// </summary>
         private string GetTimeBasedGreeting()
         {
             int hour = DateTime.Now.Hour;
@@ -263,6 +222,174 @@ namespace UserModule
                 return "Good Evening";
             else
                 return "Good Night";
+        }
+
+        /// <summary>
+        /// Initialize the internet status monitoring timer
+        /// </summary>
+        private void InitializeInternetStatusMonitor()
+        {
+            _ = CheckInternetStatusAsync();
+
+            internetCheckTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            internetCheckTimer.Tick += async (s, e) => await CheckInternetStatusAsync();
+            internetCheckTimer.Start();
+        }
+
+        /// <summary>
+        /// Check internet connection status and update the indicator
+        /// </summary>
+        private async Task CheckInternetStatusAsync()
+        {
+            try
+            {
+                bool isConnected = NetworkInterface.GetIsNetworkAvailable();
+                
+                if (!isConnected)
+                {
+                    consecutiveFailures = 3;
+                    UpdateInternetStatus(InternetStatus.NoConnection);
+                    return;
+                }
+
+                bool hasInternet = await PingServerAsync("8.8.8.8", 3000);
+                
+                if (hasInternet)
+                {
+                    consecutiveFailures = 0;
+                    UpdateInternetStatus(InternetStatus.Good);
+                }
+                else
+                {
+                    consecutiveFailures++;
+                    
+                    if (consecutiveFailures >= 3)
+                    {
+                        UpdateInternetStatus(InternetStatus.NoConnection);
+                    }
+                    else if (consecutiveFailures >= 1)
+                    {
+                        UpdateInternetStatus(InternetStatus.Unstable);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+                consecutiveFailures++;
+                
+                if (consecutiveFailures >= 2)
+                {
+                    UpdateInternetStatus(InternetStatus.NoConnection);
+                }
+                else
+                {
+                    UpdateInternetStatus(InternetStatus.Unstable);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ping a server to check internet connectivity
+        /// </summary>
+        private async Task<bool> PingServerAsync(string host, int timeout)
+        {
+            try
+            {
+                using (var ping = new Ping())
+                {
+                    var reply = await ping.SendPingAsync(host, timeout);
+                    return reply.Status == IPStatus.Success;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Update the UI with the current internet status
+        /// </summary>
+        private void UpdateInternetStatus(InternetStatus status)
+        {
+            if (InternetStatusDot == null || InternetStatusText == null)
+                return;
+
+            switch (status)
+            {
+                case InternetStatus.Good:
+                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                    InternetStatusText.Text = "Online";
+                    InternetStatusDot.ToolTip = "Internet connection is stable";
+                    break;
+
+                case InternetStatus.Unstable:
+                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(255, 193, 7));
+                    InternetStatusText.Text = "Unstable";
+                    InternetStatusDot.ToolTip = "Internet connection is weak or unstable";
+                    break;
+
+                case InternetStatus.NoConnection:
+                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                    InternetStatusText.Text = "Offline";
+                    InternetStatusDot.ToolTip = "No internet connection";
+                    break;
+            }
+        }
+
+        private enum InternetStatus
+        {
+            Good,
+            Unstable,
+            NoConnection
+        }
+
+        /// <summary>
+        /// Handle Scan button click - opens scan control in Dashboard
+        /// </summary>
+        private void ScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenScanControl();
+        }
+
+        /// <summary>
+        /// Handle Header Scan button click - opens scan control in Dashboard
+        /// </summary>
+        private void HeaderScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetSelectedButton(ScanHeaderButton);
+            OpenScanControl();
+        }
+
+        /// <summary>
+        /// Opens the scan control in Dashboard
+        /// </summary>
+        private void OpenScanControl()
+        {
+            try
+            {
+                if (MainContentHost.Content is Dashboard dashboard)
+                {
+                    dashboard.OpenScanControl();
+                }
+                else
+                {
+                    var newDashboard = new Dashboard();
+                    LoadContent(newDashboard);
+                    SetSelectedButton(DashboardButton);
+                    newDashboard.OpenScanControl();
+                }
+                
+                Logger.Log("Scan button clicked from Header");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+            }
         }
     }
 }

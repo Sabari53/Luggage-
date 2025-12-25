@@ -2,12 +2,9 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using UserModule.Models;
 
 namespace UserModule
@@ -15,15 +12,11 @@ namespace UserModule
     public partial class Dashboard : UserControl
     {
         public ObservableCollection<Booking1> Bookings { get; set; } = new ObservableCollection<Booking1>();
-        private List<Booking1> allBookings = new List<Booking1>(); // Store all bookings for filtering
+        private List<Booking1> allBookings = new List<Booking1>();
 
         private Dictionary<string, int> bookingTypeCounts = new Dictionary<string, int>();
         private Dictionary<string, TextBlock> typeTextBlocks = new Dictionary<string, TextBlock>();
-        private string currentFilter = "All"; // Track current filter state
-        
-        // Internet status monitoring
-        private DispatcherTimer? internetCheckTimer;
-        private int consecutiveFailures = 0;
+        private string currentFilter = "All";
 
         public Dashboard()
         {
@@ -36,19 +29,15 @@ namespace UserModule
                 LoadBookings();
                 DateTextBlock.Text = DateTime.Now.ToString("MMMM d, yyyy");
                 
-                // Get username from LocalStorage instead of hardcoded "User"
                 string username = LocalStorage.GetItem("username");
                 if (string.IsNullOrEmpty(username))
                 {
-                    username = "User"; // Fallback if not found
+                    username = "User";
                 }
                 UpdateGreeting(username);
                 
                 InitializeBookingTypeCounts();
                 UpdateCountsFromBookings();
-                
-                // Initialize internet status monitoring
-                InitializeInternetStatusMonitor();
             }
             catch (Exception ex)
             {
@@ -170,6 +159,56 @@ namespace UserModule
             }
         }
 
+        /// <summary>
+        /// Opens the scan control from external callers (like Header)
+        /// </summary>
+        public void OpenScanControl()
+        {
+            try
+            {
+                Logger.Log("OpenScanControl called - attempting to create SimpleScanControl");
+                
+                SimpleScanControl scanControl;
+                try
+                {
+                    scanControl = new SimpleScanControl();
+                    Logger.Log("SimpleScanControl created successfully");
+                }
+                catch (Exception createEx)
+                {
+                    Logger.LogError(createEx);
+                    MessageBox.Show(
+                        $"Error creating scan control", 
+                        "Control Creation Error", 
+                        MessageBoxButton.OK, 
+                        MessageBoxImage.Error);
+                    return;
+                }
+                
+                // Handle close event
+                scanControl.CloseRequested += (s, ev) =>
+                {
+                    ContentGrid.Children.Clear();
+                    ContentGrid.Visibility = Visibility.Collapsed;
+                    
+                    // Reload bookings to reflect any completed bookings
+                    LoadBookings();
+                    UpdateCountsFromBookings();
+                    
+                    Logger.Log("Scan control closed - Dashboard refreshed");
+                };
+                
+                ContentGrid.Children.Clear();
+                ContentGrid.Children.Add(scanControl);
+                ContentGrid.Visibility = Visibility.Visible;
+                Logger.Log("Scan billing control opened and displayed.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+            }
+        }
+
         private void AddBookingButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -177,8 +216,8 @@ namespace UserModule
                 var parentWindow = Window.GetWindow(this);
                 if (parentWindow is MainWindow mainWin && mainWin.MainContent.Content is Header header)
                 {
-                    header.OpenNewBooking();
-                    Logger.Log("New booking page opened.");
+                    header.OpenBooking();
+                    Logger.Log("Booking page opened.");
                 }
             }
             catch (Exception ex)
@@ -603,146 +642,12 @@ namespace UserModule
                 ).ToList();
 
                 BookingDataGrid.ItemsSource = filtered;
-                Logger.Log($"Search performed: {query}"); // ✅ Added Logger
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex); // ✅ Added Logger
-                // MessageBox.Show($"Search error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Initialize the internet status monitoring timer
-        /// </summary>
-        private void InitializeInternetStatusMonitor()
-        {
-            // Check immediately on load
-            _ = CheckInternetStatusAsync();
-
-            // Set up timer to check every 5 seconds
-            internetCheckTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            internetCheckTimer.Tick += async (s, e) => await CheckInternetStatusAsync();
-            internetCheckTimer.Start();
-        }
-
-        /// <summary>
-        /// Check internet connection status and update the indicator
-        /// </summary>
-        private async Task CheckInternetStatusAsync()
-        {
-            try
-            {
-                bool isConnected = NetworkInterface.GetIsNetworkAvailable();
-                
-                if (!isConnected)
-                {
-                    // No network interface available - Red (No Internet)
-                    consecutiveFailures = 3;
-                    UpdateInternetStatus(InternetStatus.NoConnection);
-                    return;
-                }
-
-                // Try to ping a reliable server to check actual internet connectivity
-                bool hasInternet = await PingServerAsync("8.8.8.8", 3000); // Google DNS
-                
-                if (hasInternet)
-                {
-                    consecutiveFailures = 0;
-                    UpdateInternetStatus(InternetStatus.Good);
-                }
-                else
-                {
-                    consecutiveFailures++;
-                    
-                    if (consecutiveFailures >= 3)
-                    {
-                        // Multiple failures - Red (No Internet)
-                        UpdateInternetStatus(InternetStatus.NoConnection);
-                    }
-                    else if (consecutiveFailures >= 1)
-                    {
-                        // Some failures - Yellow (Unstable)
-                        UpdateInternetStatus(InternetStatus.Unstable);
-                    }
-                }
+                Logger.Log($"Search performed: {query}");
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex);
-                consecutiveFailures++;
-                
-                if (consecutiveFailures >= 2)
-                {
-                    UpdateInternetStatus(InternetStatus.NoConnection);
-                }
-                else
-                {
-                    UpdateInternetStatus(InternetStatus.Unstable);
-                }
             }
-        }
-
-        /// <summary>
-        /// Ping a server to check internet connectivity
-        /// </summary>
-        private async Task<bool> PingServerAsync(string host, int timeout)
-        {
-            try
-            {
-                using (var ping = new Ping())
-                {
-                    var reply = await ping.SendPingAsync(host, timeout);
-                    return reply.Status == IPStatus.Success;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Update the UI with the current internet status
-        /// </summary>
-        private void UpdateInternetStatus(InternetStatus status)
-        {
-            if (InternetStatusDot == null || InternetStatusText == null)
-                return;
-
-            switch (status)
-            {
-                case InternetStatus.Good:
-                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Green
-                    InternetStatusText.Text = "Online";
-                    InternetStatusDot.ToolTip = "Internet connection is stable";
-                    break;
-
-                case InternetStatus.Unstable:
-                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Yellow/Amber
-                    InternetStatusText.Text = "Unstable";
-                    InternetStatusDot.ToolTip = "Internet connection is weak or unstable";
-                    break;
-
-                case InternetStatus.NoConnection:
-                    InternetStatusDot.Fill = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
-                    InternetStatusText.Text = "Offline";
-                    InternetStatusDot.ToolTip = "No internet connection";
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Internet connection status enum
-        /// </summary>
-        private enum InternetStatus
-        {
-            Good,       // Green - Stable connection
-            Unstable,   // Yellow - Weak/intermittent connection
-            NoConnection // Red - No internet
         }
     }
 }

@@ -152,27 +152,37 @@ namespace UserModule
 
         private void cmbPaymentMethod_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ValidatePaymentForm();
+            // Only validate if control is fully loaded
+            if (btnCompletePayment != null)
+            {
+                ValidatePaymentForm();
+            }
         }
 
         private void ValidatePaymentForm()
         {
             try
             {
+                // Null check for btnCompletePayment
+                if (btnCompletePayment == null) return;
+                
                 // Only check if payment method is selected
-                bool isValid = cmbPaymentMethod.SelectedIndex > 0;
+                bool isValid = cmbPaymentMethod != null && cmbPaymentMethod.SelectedIndex > 0;
 
                 // Enable/disable complete button
                 btnCompletePayment.IsEnabled = isValid;
                 
                 // Show/hide error message
-                if (cmbPaymentMethod.SelectedIndex == 0 && cmbPaymentMethod.IsFocused)
+                if (errPaymentMethod != null)
                 {
-                    errPaymentMethod.Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    errPaymentMethod.Visibility = Visibility.Collapsed;
+                    if (cmbPaymentMethod != null && cmbPaymentMethod.SelectedIndex == 0 && cmbPaymentMethod.IsFocused)
+                    {
+                        errPaymentMethod.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        errPaymentMethod.Visibility = Visibility.Collapsed;
+                    }
                 }
             }
             catch (Exception ex)
