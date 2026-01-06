@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="UserModule.Login"
+﻿<UserControl x:Class="UserModule.Views.Login"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:UserModule.Components"
@@ -6,7 +6,7 @@
              Background="#F7F7F7"
              Loaded="UserControl_Loaded"
              KeyDown="Login_KeyDown">
-
+    <!-- Namespace fix for code-generation -->
     <UserControl.Resources>
         <!-- Modern TextBox Style -->
          <Style x:Key="ModernTextBox" TargetType="TextBox">

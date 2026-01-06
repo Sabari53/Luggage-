@@ -250,12 +250,20 @@
         
         <!-- FORM - SCROLLABLE AREA -->
         <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="30" Margin="20,10,20,20">
-            <ScrollViewer x:Name="FormScrollViewer"
-                          VerticalScrollBarVisibility="Hidden" 
-                          HorizontalScrollBarVisibility="Disabled"
-                          PanningMode="VerticalOnly"
-                          CanContentScroll="False"
-                          PreviewMouseWheel="UserControl_PreviewMouseWheel">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <ScrollViewer x:Name="FormScrollViewer"
+                              Grid.Row="0"
+                              VerticalScrollBarVisibility="Auto" 
+                              HorizontalScrollBarVisibility="Disabled"
+                              PanningMode="VerticalOnly"
+                              CanContentScroll="False"
+                              PreviewMouseWheel="UserControl_PreviewMouseWheel"
+                              Margin="0,0,0,20">
                 <!-- Main content grid (your booking form) -->
                 <Grid x:Name="MainContentGrid" Margin="12,0,0,0">
                     <Grid.RowDefinitions>
@@ -470,7 +478,6 @@
                                      MaxLength="2"
                                      PreviewTextInput="NumbersOnly_PreviewTextInput"
                                      DataObject.Pasting="NumbersOnly_Pasting"
-                                     PreviewKeyDown="LockerCount_PreviewKeyDown"
                                      TextChanged="LockerCount_TextChanged"/>
                                 <TextBlock x:Name="errLockerCount" 
                                        Text="* Locker count must be between 1 and 60" 
@@ -480,298 +487,116 @@
                                        Margin="5,2,0,0"/>
                             </StackPanel>
 
-                            <!-- Column 1: Locker Number (Multiple Selection) -->
+                            <!-- Column 1: Locker Number (Multiple Selection with Search) -->
                             <StackPanel Grid.Column="1" Margin="15,0,0,0">
                                 <TextBlock Text="Locker Number" FontWeight="SemiBold" FontSize="14" Foreground="#333" Margin="0,0,0,8"/>
-                                <Grid>
-                                    <!-- TextBox with dropdown arrow button -->
-                                    <Border BorderBrush="#999999"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Background="White"
-                                            Height="40"
-                                            MouseEnter="LockerNumberBorder_MouseEnter">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="30"/>
-                                            </Grid.ColumnDefinitions>
-                                            
-                                            <!-- TextBox for displaying selected lockers with count -->
-                                            <Grid Grid.Column="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="txtLockerNumbers"
-                                                         Grid.Column="0"
-                                                         BorderThickness="0"
-                                                         Background="Transparent"
-                                                         Padding="12,0,5,0"
-                                                         FontSize="16"
-                                                         VerticalContentAlignment="Center"
-                                                         Foreground="Black"
-                                                         FontWeight="DemiBold"
-                                                         IsReadOnly="True"
-                                                         PreviewKeyDown="LockerNumber_PreviewKeyDown"
-                                                         PreviewMouseDown="LockerNumbers_MouseDown"
-                                                         Cursor="Hand"
-                                                         ToolTip="Hover or click to select lockers">
-                                                <TextBox.Style>
-                                                    <Style TargetType="TextBox">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="TextBox">
-                                                                    <Grid>
-                                                                        <ScrollViewer x:Name="PART_ContentHost"
-                                                                                      VerticalAlignment="Center"/>
-                                                                        <TextBlock x:Name="Watermark"
-                                                                                   Text="Select locker numbers"
-                                                                                   Foreground="#999"
-                                                                                   Margin="12,0,0,0"
-                                                                                   VerticalAlignment="Center"
-                                                                                   IsHitTestVisible="False"
-                                                                                   Opacity="0.6"
-                                                                                   Visibility="Collapsed"/>
-                                                                    </Grid>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <MultiTrigger>
-                                                                            <MultiTrigger.Conditions>
-                                                                                <Condition Property="Text" Value=""/>
-                                                                            </MultiTrigger.Conditions>
-                                                                            <Setter TargetName="Watermark" Property="Visibility" Value="Visible"/>
-                                                                        </MultiTrigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </TextBox.Style>
-                                            </TextBox>
-                                            <!-- Count indicator -->
-                                            <TextBlock x:Name="txtLockerCount_Display"
-                                                       Grid.Column="1"
-                                                       Foreground="#666"
-                                                       FontSize="13"
-                                                       FontWeight="Normal"
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       Visibility="Collapsed"/>
-                                        </Grid>
-                                            
-                                            <!-- Dropdown arrow button -->
-                                            <Button Grid.Column="1"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    Cursor="Hand"
-                                                    ToolTip="Open locker selection"
-                                                    Click="LockerNumberDropdown_Click"
-                                                    Focusable="False">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="Button">
-                                                                    <Border Background="{TemplateBinding Background}"
-                                                                            Padding="{TemplateBinding Padding}">
-                                                                        <Path x:Name="Arrow"
-                                                                              Fill="#666"
-                                                                              HorizontalAlignment="Center"
-                                                                              VerticalAlignment="Center"
-                                                                              Data="M 0 0 L 4 4 L 8 0 Z"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="Arrow" Property="Fill" Value="#333"/>
-                                                                        </Trigger>
-                                                                        <Trigger Property="IsPressed" Value="True">
-                                                                            <Setter TargetName="Arrow" Property="Fill" Value="#000"/>
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                        </Grid>
-                                    </Border>
-                                    
-                                    <!-- Popup for locker selection -->
-                                    <Popup x:Name="lockerNumberPopup"
-                                           PlacementTarget="{Binding ElementName=txtLockerNumbers}"
-                                           Placement="Bottom"
-                                           StaysOpen="False"
-                                           Width="400"
-                                           Opened="LockerNumberPopup_Opened">
-                                        <Border Background="White"
-                                                BorderBrush="#999999"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                MaxHeight="300"
-                                                MinHeight="150">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="*"/>
-                                                </Grid.RowDefinitions>
-                                                
-                                                <!-- Search box at top -->
-                                                <Border Grid.Row="0"
-                                                        Background="#F8F9FA"
-                                                        BorderBrush="#E0E0E0"
-                                                        BorderThickness="0,0,0,1"
-                                                        Padding="10,8">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBox x:Name="txtLockerSearch"
-                                                                 Grid.Column="0"
-                                                                 Height="32"
-                                                                 Padding="8,0"
-                                                                 FontSize="14"
-                                                                 Foreground="#333"
-                                                                 Background="White"
-                                                                 BorderBrush="#CCC"
-                                                                 BorderThickness="1"
-                                                                 VerticalContentAlignment="Center"
-                                                                 TextChanged="LockerSearch_TextChanged"
-                                                                 PreviewKeyDown="LockerSearch_PreviewKeyDown">
-                                                        <TextBox.Style>
-                                                            <Style TargetType="TextBox">
-                                                                <Setter Property="Template">
-                                                                    <Setter.Value>
-                                                                        <ControlTemplate TargetType="TextBox">
-                                                                            <Border Background="{TemplateBinding Background}"
-                                                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                    CornerRadius="3">
-                                                                                <Grid>
-                                                                                    <ScrollViewer x:Name="PART_ContentHost"
-                                                                                                  Margin="8,0"
-                                                                                                  VerticalAlignment="Center"/>
-                                                                                    <TextBlock x:Name="Watermark"
-                                                                                               Text="Search locker..."
-                                                                                               Foreground="#999"
-                                                                                               Margin="8,0"
-                                                                                               VerticalAlignment="Center"
-                                                                                               IsHitTestVisible="False"
-                                                                                               Visibility="Collapsed"/>
-                                                                                </Grid>
-                                                                            </Border>
-                                                                            <ControlTemplate.Triggers>
-                                                                                <MultiTrigger>
-                                                                                    <MultiTrigger.Conditions>
-                                                                                        <Condition Property="Text" Value=""/>
-                                                                                    </MultiTrigger.Conditions>
-                                                                                    <Setter TargetName="Watermark" Property="Visibility" Value="Visible"/>
-                                                                                </MultiTrigger>
-                                                                            </ControlTemplate.Triggers>
-                                                                        </ControlTemplate>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </Style>
-                                                        </TextBox.Style>
-                                                    </TextBox>
-                                                    <Button Grid.Column="1"
-                                                            Content="Add"
-                                                            Margin="8,0,0,0"
-                                                            Padding="16,6"
-                                                            Height="32"
-                                                            FontSize="13"
-                                                            FontWeight="SemiBold"
-                                                            Foreground="White"
-                                                            Background="#4CAF50"
-                                                            BorderThickness="0"
-                                                            Cursor="Hand"
-                                                            Click="AddLockerNumber_Click">
-                                                        <Button.Style>
-                                                            <Style TargetType="Button">
-                                                                <Setter Property="Template">
-                                                                    <Setter.Value>
-                                                                        <ControlTemplate TargetType="Button">
-                                                                            <Border Background="{TemplateBinding Background}"
-                                                                                    CornerRadius="3"
-                                                                                    Padding="{TemplateBinding Padding}">
-                                                                                <ContentPresenter HorizontalAlignment="Center"
-                                                                                                  VerticalAlignment="Center"/>
-                                                                            </Border>
-                                                                            <ControlTemplate.Triggers>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter Property="Background" Value="#45A049"/>
-                                                                                </Trigger>
-                                                                                <Trigger Property="IsPressed" Value="True">
-                                                                                    <Setter Property="Background" Value="#3D8B40"/>
-                                                                                </Trigger>
-                                                                            </ControlTemplate.Triggers>
-                                                                        </ControlTemplate>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </Style>
-                                                        </Button.Style>
-                                                    </Button>
-                                                </Grid>
+                                
+                                <!-- Editable ComboBox for Locker Search and Selection -->
+                                <ComboBox x:Name="cmbLockerNumber"
+                                          Height="44"
+                                          FontSize="14"
+                                          Foreground="#333"
+                                          FontWeight="Normal"
+                                          Background="White"
+                                          BorderBrush="#E0E0E0"
+                                          BorderThickness="1"
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="False"
+                                          StaysOpenOnEdit="True"
+                                          Padding="14,0"
+                                          VerticalContentAlignment="Center"
+                                          ItemContainerStyle="{StaticResource WhiteComboBoxItemStyle}"
+                                          SelectionChanged="LockerComboBox_SelectionChanged"
+                                          PreviewKeyDown="LockerComboBox_KeyDown"
+                                          TextInput="LockerComboBox_TextInput"
+                                          DropDownOpened="LockerComboBox_DropDownOpened">
+                                    <ComboBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                        </ItemsPanelTemplate>
+                                    </ComboBox.ItemsPanel>
+                                </ComboBox>
+                                <TextBlock Text="(Type 1-3 digit locker number)" 
+                                           FontSize="11" 
+                                           Foreground="#999" 
+                                           Margin="0,4,0,0"/>
+                                
+                                <!-- Selected Lockers Display -->
+                                <Border Background="#FAFBFF" 
+                                        BorderBrush="#E0E7F1" 
+                                        BorderThickness="1" 
+                                        CornerRadius="8" 
+                                        Padding="12" 
+                                        Margin="0,10,0,0"
+                                        MinHeight="50">
+                                    <ItemsControl x:Name="selectedLockersItemsControl" 
+                                                  Background="Transparent">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel IsItemsHost="True" Orientation="Horizontal" Margin="0"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#333" 
+                                                        CornerRadius="6" 
+                                                        Padding="10,6" 
+                                                        Margin="6,4"
+                                                        VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Locker " 
+                                                                   Foreground="White" 
+                                                                   FontSize="12" 
+                                                                   FontWeight="Medium"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,1,0"/>
+                                                        <TextBlock Text="{Binding}" 
+                                                                   Foreground="White" 
+                                                                   FontSize="12" 
+                                                                   FontWeight="Bold"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,6,0"/>
+                                                        <Button x:Name="RemoveBtn"
+                                                                Content="✕" 
+                                                                Background="Transparent" 
+                                                                Foreground="White" 
+                                                                BorderThickness="0"
+                                                                Padding="2,0,0,0"
+                                                                Cursor="Hand"
+                                                                FontSize="13"
+                                                                FontWeight="Bold"
+                                                                Click="RemoveLockerButton_Click"
+                                                                Tag="{Binding}"
+                                                                Opacity="0.85"
+                                                                ToolTip="Remove locker"/>
+                                                    </StackPanel>
                                                 </Border>
-                                                
-                                                <!-- Locker list with virtualization -->
-                                                <ScrollViewer Grid.Row="1"
-                                                              VerticalScrollBarVisibility="Auto"
-                                                              HorizontalScrollBarVisibility="Disabled">
-                                                    <ListBox x:Name="lstLockerNumbers"
-                                                             SelectionMode="Multiple"
-                                                             Background="White"
-                                                             BorderThickness="0"
-                                                             Padding="4"
-                                                             MinHeight="100"
-                                                             VirtualizingPanel.IsVirtualizing="True"
-                                                             VirtualizingPanel.VirtualizationMode="Recycling"
-                                                             ScrollViewer.CanContentScroll="True"
-                                                             SelectionChanged="LockerNumbers_SelectionChanged">
-                                                        <ListBox.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <VirtualizingStackPanel/>
-                                                            </ItemsPanelTemplate>
-                                                        </ListBox.ItemsPanel>
-                                                    <ListBox.ItemContainerStyle>
-                                                        <Style TargetType="ListBoxItem">
-                                                            <Setter Property="Padding" Value="10,8"/>
-                                                            <Setter Property="Background" Value="White"/>
-                                                            <Setter Property="FontSize" Value="14"/>
-                                                            <Setter Property="FontWeight" Value="Normal"/>
-                                                            <Setter Property="Foreground" Value="#333"/>
-                                                            <Setter Property="Cursor" Value="Hand"/>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#F0F0F0"/>
-                                                                </Trigger>
-                                                                <Trigger Property="IsSelected" Value="True">
-                                                                    <Setter Property="Background" Value="#E6F0FE"/>
-                                                                    <Setter Property="Foreground" Value="#333"/>
-                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ListBox.ItemContainerStyle>
-                                                </ListBox>
-                                            </ScrollViewer>
-                                        </Grid>
-                                    </Border>
-                                </Popup>
-                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                                
                                 <TextBlock x:Name="errLockerNumber" 
-                                       Text="* Select at least one locker number" 
-                                       Foreground="#CC1F1F" 
-                                       FontSize="12" 
-                                       Visibility="Collapsed" 
-                                       Margin="5,2,0,0"/>
+                                           Text="* Select at least one locker number" 
+                                           Foreground="#E53935" 
+                                           FontSize="12"
+                                           FontWeight="Medium"
+                                           Visibility="Collapsed" 
+                                           Margin="0,8,0,0"/>
+                                
+                                <TextBlock x:Name="lockerLimitWarning" 
+                                           Text="" 
+                                           Foreground="#FB8C00" 
+                                           FontSize="11"
+                                           FontWeight="Medium"
+                                           Visibility="Collapsed" 
+                                           Margin="0,4,0,0"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
 
                     <!-- Data grid for luggage items -->
-                    <Border Grid.Row="6" Grid.ColumnSpan="3" Margin="0,0,0,10" Background="#FFFFFF" CornerRadius="8" Padding="8">
+                    <Border Grid.Row="6" Grid.ColumnSpan="3" Margin="0,0,0,30" Background="#FFFFFF" CornerRadius="8" Padding="8">
                         <DataGrid x:Name="LuggageGrid"
                               ItemsSource="{Binding Items}"
                               AutoGenerateColumns="False"
@@ -962,25 +787,43 @@
                             </DataGridTemplateColumn>
 
                             <!-- Price -->
-                            <DataGridTextColumn Header="Price"
-                                    Binding="{Binding Price, StringFormat=0}"
-                                    IsReadOnly="True"
-                                    Width="100">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="TextAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="8,4"/>
-                                        <Setter Property="FontSize" Value="14"/>
-                                        <Setter Property="FontWeight" Value="DemiBold"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="Focusable" Value="False"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Price" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="Transparent" Padding="8,4">
+                                            <TextBlock Text="{Binding Price, StringFormat=0}"
+                                               FontSize="14"
+                                               FontWeight="DemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Background="Transparent"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Price, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=0}"
+                                         PreviewTextInput="NumbersOnly_PreviewTextInput"
+                                         DataObject.Pasting="NumbersOnly_Pasting"
+                                         Background="White"
+                                         Foreground="Black"
+                                         FontSize="14"
+                                         FontWeight="DemiBold"
+                                         BorderThickness="1"
+                                         BorderBrush="#CCCCCC"
+                                         Margin="2"
+                                         Padding="8,4"
+                                         TextAlignment="Center"
+                                         VerticalContentAlignment="Center"
+                                         MaxLength="10"
+                                         LostFocus="Price_LostFocus"
+                                         PreviewKeyDown="Price_PreviewKeyDown"
+                                         GotFocus="Price_GotFocus"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
-                            <!-- Total -->
+                            <!-- Total (Read-only - auto-calculated) -->
                             <DataGridTemplateColumn Header="Total" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -994,38 +837,22 @@
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-                                <DataGridTemplateColumn.CellEditingTemplate>
-                                    <DataTemplate>
-                                        <TextBox Text="{Binding TotalAmount, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=0}"
-                                         PreviewTextInput="NumbersOnly_PreviewTextInput"
-                                         DataObject.Pasting="NumbersOnly_Pasting"
-                                         Background="White"
-                                         Foreground="Black"
-                                         FontSize="14"
-                                         FontWeight="DemiBold"
-                                         BorderThickness="1"
-                                         BorderBrush="#CCCCCC"
-                                         Margin="2"
-                                         Padding="8,4"
-                                         TextAlignment="Center"
-                                         VerticalContentAlignment="Center"
-                                         MaxLength="10"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
 
-                <!-- Submit / Cancel Buttons -->
-                <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,40,0,0">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                </Grid>
+                </ScrollViewer>
+
+                <!-- Fixed Buttons at Bottom Outside Scroll -->
+                <Grid Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="GenerateBillButton" Content="Generate Bill" Width="249" Height="40" Background="#232323" Foreground="white" FontSize="16" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0" Click="GenerateBill_Click"/>
                         <Button Content="Cancel" Width="243" Height="40" Background="#BDBCBC" Foreground="White" FontSize="16" FontWeight="SemiBold" BorderBrush="#999" BorderThickness="0" Cursor="Hand"/>
                     </StackPanel>
                 </Grid>
             </Grid>
-            </ScrollViewer>
         </Border>
     </Grid>
 </UserControl>

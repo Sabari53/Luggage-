@@ -120,7 +120,7 @@ namespace UserModule
                     var mainWindow = Application.Current.MainWindow as MainWindow;
                     if (mainWindow != null)
                     {
-                        var loginControl = new Login();
+                        var loginControl = new Views.Login();
 
                         loginControl.LoginSuccess += username =>
                         {

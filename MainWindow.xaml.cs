@@ -23,7 +23,7 @@ namespace UserModule
             catch { /* Icon is optional */ }
 
             // Load Login first
-            var loginControl = new Login();
+            var loginControl = new Views.Login();
             loginControl.LoginSuccess += OnLoginSuccess;
             MainContent.Content = loginControl;
 

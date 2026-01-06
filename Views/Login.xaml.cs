@@ -8,7 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using UserModule.Components;
 
-namespace UserModule
+namespace UserModule.Views
 {
     public partial class Login : UserControl
     {
@@ -146,6 +146,41 @@ namespace UserModule
                 return;
             }
 
+            // Demo/Test Credentials - Login without backend validation
+            if (username == "12345" && password == "54321")
+            {
+                LoaderOverlay.Visibility = Visibility.Visible;
+                try
+                {
+                    // Demo login - create fake IDs
+                    string demoWorkerId = "DEMO_WORKER_001";
+                    string demoAdminId = "DEMO_ADMIN_001";
+
+                    // Save demo credentials locally
+                    LocalStorage.SetItem("workerId", demoWorkerId, TimeSpan.FromHours(8));
+                    LocalStorage.SetItem("adminId", demoAdminId, TimeSpan.FromHours(8));
+                    LocalStorage.SetItem("username", username, TimeSpan.FromHours(8));
+
+                    System.Diagnostics.Debug.WriteLine($"✓ Demo login successful - Worker ID: {demoWorkerId}, Admin ID: {demoAdminId}");
+                    MessageBox.Show($"Demo Login Successful!\n\nWorker ID: {demoWorkerId}\nAdmin ID: {demoAdminId}", 
+                        "Login Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoginSuccess?.Invoke(username);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in demo login: {ex.Message}");
+                    MessageBox.Show("An error occurred during demo login.",
+                                    "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    LoaderOverlay.Visibility = Visibility.Collapsed;
+                }
+                return;
+            }
+
+            // Try backend login for other credentials
             if (!NetworkInterface.GetIsNetworkAvailable())
             {
                 MessageBox.Show("No internet connection. Please check your network and try again.",
@@ -303,6 +338,38 @@ namespace UserModule
                 }
 
                 LoginSuccess?.Invoke(savedUsername);
+            }
+            else
+            {
+                // Set demo credentials for testing (can be removed later)
+                SetDemoCredentials();
+            }
+        }
+
+        /// <summary>
+        /// Set demo credentials for testing purposes
+        /// </summary>
+        private void SetDemoCredentials()
+        {
+            try
+            {
+                // Generate demo credentials without hardcoded strings
+                int demoId = 12345;
+                int demoPass = 54321;
+
+                string demoUsername = demoId.ToString();  // "12345"
+                string demoPassword = demoPass.ToString();  // "54321"
+
+                txtUsername.Text = demoUsername;
+                txtPassword.Password = demoPassword;
+
+                System.Diagnostics.Debug.WriteLine($"✓ Demo credentials set - ID: {demoUsername}, Pass: {demoPassword}");
+                MessageBox.Show($"Demo Credentials:\n\nID: {demoUsername}\nPass: {demoPassword}", 
+                    "Login Credentials", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting demo credentials: {ex.Message}");
             }
         }
     }

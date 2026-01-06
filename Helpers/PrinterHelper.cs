@@ -1,7 +1,6 @@
 ﻿﻿using System;
 using System.Drawing.Printing;
 using System.IO;
-using System.Management;
 using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,10 +14,20 @@ namespace UserModule
 {
     public static class PrinterHelper
     {
+        // Offline mode flag - disable printer checks that require admin privileges
+        private static bool _offlineMode = true;
+
         public static bool TryPrint(UIElement visualToPrint)
         {
             try
             {
+                // In offline mode, skip printer functionality
+                if (_offlineMode)
+                {
+                    Logger.Log("Offline mode enabled - printing disabled");
+                    return false;
+                }
+
                 if (PrinterSettings.InstalledPrinters.Count == 0)
                 {
                     MessageBox.Show("No printers are installed.", "Printer Error",
@@ -59,19 +68,23 @@ namespace UserModule
         {
             try
             {
-                string query = $"SELECT * FROM Win32_Printer WHERE Name = '{printerName.Replace("\\", "\\\\")}'";
-                using (var searcher = new ManagementObjectSearcher(query))
-                {
-                    foreach (ManagementObject printer in searcher.Get())
-                    {
-                        bool workOffline = Convert.ToBoolean(printer["WorkOffline"] ?? false);
-                        int status = Convert.ToInt32(printer["PrinterStatus"] ?? 0);
+                // Disabled: WMI queries require admin privileges
+                // In offline mode, we skip this check entirely
+                if (_offlineMode)
+                    return false;
 
-                        // Status codes: 2 = Idle, 3 = Printing, 4 = Warmup, 5 = Stopped Printing
-                        if (workOffline || (status < 2 || status > 4))
-                            return false;
-                    }
-                }
+                // Original code commented out to avoid admin requirement
+                // string query = $"SELECT * FROM Win32_Printer WHERE Name = '{printerName.Replace("\\", "\\\\")}'";
+                // using (var searcher = new ManagementObjectSearcher(query))
+                // {
+                //     foreach (ManagementObject printer in searcher.Get())
+                //     {
+                //         bool workOffline = Convert.ToBoolean(printer["WorkOffline"] ?? false);
+                //         int status = Convert.ToInt32(printer["PrinterStatus"] ?? 0);
+                //         if (workOffline || (status < 2 || status > 4))
+                //             return false;
+                //     }
+                // }
             }
             catch
             {

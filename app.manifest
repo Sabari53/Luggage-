@@ -5,9 +5,9 @@
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
         <!-- UAC Manifest Options
-             Require administrator privileges to run the application
+             Run with user privileges (no elevation required for offline mode)
         -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
