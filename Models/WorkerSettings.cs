@@ -1,46 +1,40 @@
 using System;
-using System.Collections.Generic;
-using Newtonsoft.Json;
 
 namespace UserModule.Models
 {
-    public class BookingType
+    // Worker session data after login
+    public class WorkerSession
     {
-        public string Type { get; set; } = "";
-        public decimal Amount { get; set; }
-    }
+        public string WorkerCode { get; set; } = string.Empty;
+        public string AdminCode { get; set; } = string.Empty;
+        public string WorkerName { get; set; } = string.Empty;
+        public DateTime LoginTime { get; set; } = DateTime.Now;
 
-    // API Response Model
-    public class HallTypesResponse
-    {
-        [JsonProperty("types")]
-        public List<BookingType> Types { get; set; } = new List<BookingType>();
-        
-        [JsonProperty("advance_payment_enabled")]
-        public bool AdvancePaymentEnabled { get; set; }
-        
-        [JsonProperty("default_advance_percentage")]
-        public decimal DefaultAdvancePercentage { get; set; }
-        
-        [JsonProperty("hall_name")]
-        public string? HallName { get; set; }
-    }
+        // Singleton instance for current session
+        private static WorkerSession? _currentSession;
 
-    // Database Model for Settings
-    public class Settings
-    {
-        public int Id { get; set; }
-        public string AdminId { get; set; } = "";
-        public string? Type1 { get; set; }
-        public decimal? Type1Amount { get; set; }
-        public string? Type2 { get; set; }
-        public decimal? Type2Amount { get; set; }
-        public string? Type3 { get; set; }
-        public decimal? Type3Amount { get; set; }
-        public string? Type4 { get; set; }
-        public decimal? Type4Amount { get; set; }
-        public bool AdvancePaymentEnabled { get; set; }
-    public decimal DefaultAdvancePercentage { get; set; }
-        public DateTime LastSynced { get; set; }
+        public static WorkerSession? Current
+        {
+            get => _currentSession;
+            set => _currentSession = value;
+        }
+
+        public static void SetSession(string workerCode, string adminCode, string workerName = "")
+        {
+            _currentSession = new WorkerSession
+            {
+                WorkerCode = workerCode,
+                AdminCode = adminCode,
+                WorkerName = workerName,
+                LoginTime = DateTime.Now
+            };
+        }
+
+        public static void ClearSession()
+        {
+            _currentSession = null;
+        }
+
+        public static bool IsLoggedIn => _currentSession != null;
     }
 }

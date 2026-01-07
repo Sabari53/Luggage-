@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using UserModule.Models;
 using System.Windows.Media;
 using UserModule.Models;
+using UserModule.Storage;
 
 namespace UserModule
 {
@@ -29,7 +31,7 @@ namespace UserModule
                 LoadBookings();
                 DateTextBlock.Text = DateTime.Now.ToString("MMMM d, yyyy");
                 
-                string username = LocalStorage.GetItem("username");
+                string username = LocalStorage.GetItem(LocalStorage.KEY_WORKER_NAME);
                 if (string.IsNullOrEmpty(username))
                 {
                     username = "User";
@@ -89,7 +91,7 @@ namespace UserModule
 
             if (currentFilter == "Active")
             {
-                filteredBookings = allBookings.Where(b => b.status?.ToLower() == "active");
+                filteredBookings = allBookings.Where(b => b.status?.ToLower() == "pending");
             }
             else if (currentFilter == "Completed")
             {
@@ -409,7 +411,7 @@ namespace UserModule
                     // Add to total amount
                     totalAmount += booking.total_amount;
 
-                    if (booking.status?.ToLower() == "active")
+                    if (booking.status?.ToLower() == "pending") // Active bookings are "pending" status
                     {
                         activeCount++;
                         
@@ -648,16 +650,35 @@ namespace UserModule
                     return;
                 }
 
+                // Smart search mapping for status
+                string? statusFilter = null;
+                if (query == "active" || query == "pending")
+                {
+                    statusFilter = "pending";
+                }
+                else if (query == "completed" || query == "done"|| query == "closed"||query =="Completed")
+                {
+                    statusFilter = "completed";
+                }
+
                 var filtered = Bookings.Where(b =>
-                    (!string.IsNullOrEmpty(b.guest_name) && b.guest_name.ToLower().Contains(query)) ||
-                    (!string.IsNullOrEmpty(b.phone_number) && b.phone_number.ToLower().Contains(query)) ||
-                    (!string.IsNullOrEmpty(b.booking_id) && b.booking_id.ToLower().Contains(query)) ||
-                    (!string.IsNullOrEmpty(b.booking_type) && b.booking_type.ToLower().Contains(query)) ||
-                    (!string.IsNullOrEmpty(b.status) && b.status.ToLower().Contains(query))
-                ).ToList();
+                {
+                    // If smart status filter is set, check status first
+                    if (statusFilter != null)
+                    {
+                        return !string.IsNullOrEmpty(b.status) && b.status.ToLower() == statusFilter;
+                    }
+
+                    // Otherwise search across all fields
+                    return (!string.IsNullOrEmpty(b.guest_name) && b.guest_name.ToLower().Contains(query)) ||
+                           (!string.IsNullOrEmpty(b.phone_number) && b.phone_number.ToLower().Contains(query)) ||
+                           (!string.IsNullOrEmpty(b.booking_id) && b.booking_id.ToLower().Contains(query)) ||
+                           (!string.IsNullOrEmpty(b.booking_type) && b.booking_type.ToLower().Contains(query)) ||
+                           (!string.IsNullOrEmpty(b.status) && b.status.ToLower().Contains(query));
+                }).ToList();
 
                 BookingDataGrid.ItemsSource = filtered;
-                Logger.Log($"Search performed: {query}");
+                Logger.Log($"Search performed: {query}, Results: {filtered.Count}");
             }
             catch (Exception ex)
             {

@@ -7,12 +7,40 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using UserModule.Components;
+using UserModule.Storage;
+using UserModule.Models;
+using UserModule.Services;
+using UserModule.Data;
 
 namespace UserModule.Views
 {
     public partial class Login : UserControl
     {
         public event Action<string> LoginSuccess = delegate { };
+
+        // Ensure luggage types exist locally; if missing, fetch from API and cache
+        private async Task EnsureLuggageTypesCachedAsync(string adminId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(adminId)) return;
+
+                var cached = BookingDatabase.GetCachedLuggageTypes(adminId);
+                if (cached != null && cached.Count > 0) return;
+
+                var bookingService = new BookingService();
+                var luggageTypes = await bookingService.GetLuggageTypesAsync(adminId);
+                if (luggageTypes != null && luggageTypes.Count > 0)
+                {
+                    BookingDatabase.SaveLuggageTypes(luggageTypes, adminId);
+                    System.Diagnostics.Debug.WriteLine($"✓ Cached {luggageTypes.Count} luggage types after auto-login");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+            }
+        }
 
         public Login()
         {
@@ -146,128 +174,97 @@ namespace UserModule.Views
                 return;
             }
 
-            // Demo/Test Credentials - Login without backend validation
-            if (username == "12345" && password == "54321")
-            {
-                LoaderOverlay.Visibility = Visibility.Visible;
-                try
-                {
-                    // Demo login - create fake IDs
-                    string demoWorkerId = "DEMO_WORKER_001";
-                    string demoAdminId = "DEMO_ADMIN_001";
-
-                    // Save demo credentials locally
-                    LocalStorage.SetItem("workerId", demoWorkerId, TimeSpan.FromHours(8));
-                    LocalStorage.SetItem("adminId", demoAdminId, TimeSpan.FromHours(8));
-                    LocalStorage.SetItem("username", username, TimeSpan.FromHours(8));
-
-                    System.Diagnostics.Debug.WriteLine($"✓ Demo login successful - Worker ID: {demoWorkerId}, Admin ID: {demoAdminId}");
-                    MessageBox.Show($"Demo Login Successful!\n\nWorker ID: {demoWorkerId}\nAdmin ID: {demoAdminId}", 
-                        "Login Success", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    LoginSuccess?.Invoke(username);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error in demo login: {ex.Message}");
-                    MessageBox.Show("An error occurred during demo login.",
-                                    "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                finally
-                {
-                    LoaderOverlay.Visibility = Visibility.Collapsed;
-                }
-                return;
-            }
-
-            // Try backend login for other credentials
+            // Check network connection
             if (!NetworkInterface.GetIsNetworkAvailable())
             {
-                MessageBox.Show("No internet connection. Please check your network and try again.",
+                MessageBox.Show("No internet connection. Login requires network access.",
                                 "Network Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             LoaderOverlay.Visibility = Visibility.Visible;
 
-            var loginData = new
+            try
             {
-                username = username,
-                password = password
-            };
+                // Create BookingService instance
+                var bookingService = new BookingService();
+                
+                // Call the new BookingService.LoginWorkerAsync
+                var loginResponse = await bookingService.LoginWorkerAsync(username, password);
 
-            string json = JsonConvert.SerializeObject(loginData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+                if (loginResponse == null)
+                {
+                    MessageBox.Show("Invalid username or password.",
+                                    "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
 
-            using (HttpClient client = new HttpClient())
-            {
+                // Save worker session using WorkerSession singleton
+                WorkerSession.SetSession(
+                    loginResponse.WorkerCode,
+                    loginResponse.AdminCode,
+                    loginResponse.WorkerName
+                );
+
+                // Save session to LocalStorage for persistence
+                LocalStorage.SaveWorkerSession(
+                    loginResponse.WorkerCode,
+                    loginResponse.AdminCode,
+                    loginResponse.WorkerName
+                );
+
+                System.Diagnostics.Debug.WriteLine($"✓ Login successful - Worker: {loginResponse.WorkerName}, WorkerCode: {loginResponse.WorkerCode}, AdminCode: {loginResponse.AdminCode}");
+
+                // Fetch and cache luggage types and lockers from server (combined call)
                 try
                 {
-                    client.Timeout = TimeSpan.FromSeconds(6);
-
-                    HttpResponseMessage response = await client.PostAsync("https://railway-worker-backend.artechnology.pro/api/Login/check", content);
-                    // MessageBox.Show($"Login attempt made. Status: {response.StatusCode}", "Login", MessageBoxButton.OK, MessageBoxImage.Information);
-                    if (response.IsSuccessStatusCode)
+                    var data = await bookingService.GetLuggageTypesWithLockersAsync(loginResponse.AdminCode);
+                    if (data != null)
                     {
-                        string responseBody = await response.Content.ReadAsStringAsync();
-                        
-                        // Show the raw response for debugging
-                        // MessageBox.Show($"Response received:\n\n{responseBody}", 
-                                        // "Server Response", MessageBoxButton.OK, MessageBoxImage.Information);
-                        
-                        dynamic? result = JsonConvert.DeserializeObject(responseBody);
-                        string? workerId = result?.worker_id;
-                        string? adminId = result?.admin_id;
-
-                        // Show parsed values
-                        // MessageBox.Show($"Worker ID: {workerId ?? "NULL"}\nAdmin ID: {adminId ?? "NULL"}", 
-                                        // "Parsed Values", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                        if (string.IsNullOrEmpty(workerId) || string.IsNullOrEmpty(adminId))
+                        // Save luggage types to local database
+                        if (data.LuggageTypes != null && data.LuggageTypes.Count > 0)
                         {
-                            MessageBox.Show("Something went wrong while processing your login. Please try again later.",
-                                            "Login Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return;
+                            BookingDatabase.SaveLuggageTypes(data.LuggageTypes, loginResponse.AdminCode);
+                            System.Diagnostics.Debug.WriteLine($"✓ Cached {data.LuggageTypes.Count} luggage types to local database");
                         }
-
-                        // Save login credentials
-                        LocalStorage.SetItem("workerId", workerId, TimeSpan.FromHours(8));
-                        LocalStorage.SetItem("adminId", adminId, TimeSpan.FromHours(8));
-                        LocalStorage.SetItem("username", username, TimeSpan.FromHours(8));
-
-                        // Fetch and save worker settings and booking types to local database
-                        await OfflineBookingStorage.FetchAndSaveWorkerSettingsAsync(adminId);
-
-                        LoginSuccess?.Invoke(username);
+                        
+                        // Save lockers to local database
+                        if (data.Lockers != null)
+                        {
+                            BookingDatabase.SaveLockers(data.Lockers, loginResponse.AdminCode);
+                            System.Diagnostics.Debug.WriteLine($"✓ Cached lockers ({data.Lockers.StartLockerNo}-{data.Lockers.EndLockerNo}) to local database");
+                        }
                     }
-                    else
-                    {
-                        MessageBox.Show("Invalid username or password.",
-                                        "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                catch (TaskCanceledException ex)
-                {
-                    Logger.LogError(ex);
-                    MessageBox.Show("The connection seems slow. Please check your internet and try again.",
-                                    "Slow Network", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-                catch (HttpRequestException ex)
-                {
-                    Logger.LogError(ex);
-                    MessageBox.Show("Unable to reach the server. Please check your network connection and try again.",
-                                    "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError(ex);
-                    MessageBox.Show("An unexpected issue occurred. Please try again later.",
-                                    "Something Went Wrong", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    System.Diagnostics.Debug.WriteLine($"⚠ Failed to fetch luggage types and lockers: {ex.Message}");
+                    // Don't block login if fetch fails
                 }
-                finally
-                {
-                    LoaderOverlay.Visibility = Visibility.Collapsed;
-                }
+
+                LoginSuccess?.Invoke(loginResponse.WorkerName);
+            }
+            catch (TaskCanceledException ex)
+            {
+                Logger.LogError(ex);
+                MessageBox.Show("The connection seems slow. Please check your internet and try again.",
+                                "Slow Network", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex);
+                MessageBox.Show("Unable to reach the server. Please check your network connection and try again.",
+                                "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex);
+                MessageBox.Show($"An unexpected issue occurred: {ex.Message}",
+                                "Login Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally
+            {
+                LoaderOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -320,56 +317,27 @@ namespace UserModule.Views
                 parent.SizeChanged += Parent_SizeChanged;
             }
 
-            string savedWorkerId = LocalStorage.GetItem("workerId");
-            string savedAdminId = LocalStorage.GetItem("adminId");
-            string savedUsername = LocalStorage.GetItem("username");
+            string? savedWorkerId = LocalStorage.GetItem("workerId");
+            string? savedAdminId = LocalStorage.GetItem("adminId");
+            string? savedUsername = LocalStorage.GetItem("username");
 
-            if (!string.IsNullOrEmpty(savedWorkerId))
+            if (!string.IsNullOrEmpty(savedWorkerId) && !string.IsNullOrEmpty(savedAdminId) && !string.IsNullOrEmpty(savedUsername))
             {
                 // Check if settings exist and are still valid (not expired)
                 var settings = OfflineBookingStorage.GetSettings();
                 
                 // If settings are expired or missing, refetch them
-                if (settings == null && !string.IsNullOrEmpty(savedAdminId))
+                if (settings == null)
                 {
                     LoaderOverlay.Visibility = Visibility.Visible;
                     await OfflineBookingStorage.FetchAndSaveWorkerSettingsAsync(savedAdminId);
                     LoaderOverlay.Visibility = Visibility.Collapsed;
                 }
 
+                // Ensure luggage types are cached locally (in case user cleared the DB)
+                await EnsureLuggageTypesCachedAsync(savedAdminId);
+
                 LoginSuccess?.Invoke(savedUsername);
-            }
-            else
-            {
-                // Set demo credentials for testing (can be removed later)
-                SetDemoCredentials();
-            }
-        }
-
-        /// <summary>
-        /// Set demo credentials for testing purposes
-        /// </summary>
-        private void SetDemoCredentials()
-        {
-            try
-            {
-                // Generate demo credentials without hardcoded strings
-                int demoId = 12345;
-                int demoPass = 54321;
-
-                string demoUsername = demoId.ToString();  // "12345"
-                string demoPassword = demoPass.ToString();  // "54321"
-
-                txtUsername.Text = demoUsername;
-                txtPassword.Password = demoPassword;
-
-                System.Diagnostics.Debug.WriteLine($"✓ Demo credentials set - ID: {demoUsername}, Pass: {demoPassword}");
-                MessageBox.Show($"Demo Credentials:\n\nID: {demoUsername}\nPass: {demoPassword}", 
-                    "Login Credentials", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error setting demo credentials: {ex.Message}");
             }
         }
     }

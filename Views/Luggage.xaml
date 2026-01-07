@@ -150,6 +150,93 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        
+        <!-- ComboBox Style with Scrollable Dropdown -->
+        <Style x:Key="ScrollableComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton" 
+                                        Grid.Column="2"
+                                        Focusable="False"
+                                        IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="20"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.ColumnSpan="2" Name="Border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="4"/>
+                                            <Path Grid.Column="1" 
+                                                  HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"
+                                                  Data="M 0 0 L 4 4 L 8 0 Z"
+                                                  Fill="#666"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Name="ContentSite"
+                                            IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="14,0,30,0"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                   Style="{x:Null}"
+                                   Background="Transparent"
+                                   Focusable="True"
+                                   Visibility="Hidden"
+                                   IsReadOnly="{TemplateBinding IsReadOnly}"
+                                   Margin="14,0,30,0"
+                                   VerticalAlignment="Center"/>
+                            <Popup Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border Name="DropDownBorder"
+                                            Background="White"
+                                            BorderBrush="#E0E0E0"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Margin="0,2,0,0">
+                                        <ScrollViewer Margin="0" 
+                                                    SnapsToDevicePixels="True"
+                                                    HorizontalScrollBarVisibility="Auto"
+                                                    VerticalScrollBarVisibility="Auto"
+                                                    CanContentScroll="True">
+                                            <StackPanel IsItemsHost="True" 
+                                                      KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Style for DataGrid header to match Dashboard -->
         <Style x:Key="LuggageDataGridHeaderStyle" TargetType="DataGridColumnHeader">
@@ -494,6 +581,7 @@
                                 <!-- Editable ComboBox for Locker Search and Selection -->
                                 <ComboBox x:Name="cmbLockerNumber"
                                           Height="44"
+                                          MaxDropDownHeight="250"
                                           FontSize="14"
                                           Foreground="#333"
                                           FontWeight="Normal"
@@ -505,16 +593,12 @@
                                           StaysOpenOnEdit="True"
                                           Padding="14,0"
                                           VerticalContentAlignment="Center"
+                                          Style="{StaticResource ScrollableComboBoxStyle}"
                                           ItemContainerStyle="{StaticResource WhiteComboBoxItemStyle}"
                                           SelectionChanged="LockerComboBox_SelectionChanged"
                                           PreviewKeyDown="LockerComboBox_KeyDown"
                                           TextInput="LockerComboBox_TextInput"
                                           DropDownOpened="LockerComboBox_DropDownOpened">
-                                    <ComboBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
-                                        </ItemsPanelTemplate>
-                                    </ComboBox.ItemsPanel>
                                 </ComboBox>
                                 <TextBlock Text="(Type 1-3 digit locker number)" 
                                            FontSize="11" 

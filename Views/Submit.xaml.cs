@@ -62,26 +62,26 @@ namespace UserModule
             if (booking == null) return;
 
             txtBookingId.Text = booking.BookingId;
-            txtGuestName.Text = booking.Name;
-            txtPhoneNumber.Text = booking.PhoneNo;
-            txtSeatType.Text = booking.SeatType;
-            txtNumberOfPersons.Text = booking.NumberOfPersons.ToString();
-            txtTotalHours.Text = booking.TotalHours.ToString();
+            txtGuestName.Text = booking.UserName;
+            txtPhoneNumber.Text = booking.PhoneNumber;
+            // txtSeatType.Text = booking.SeatType; // Not in current model
+            // txtNumberOfPersons.Text = booking.NumberOfPersons.ToString(); // Not in current model
+            // txtTotalHours.Text = booking.TotalHours.ToString(); // Not in current model
 
-            int pricePerPerson = booking.SeatType?.ToLower() == "sleeper" ? SleeperPrice : SittingPrice;
-            txtPricePerPerson.Text = pricePerPerson.ToString();
-            txtAdvanceAmount.Text = booking.PaidAmount.ToString("0.00");
+            // int pricePerPerson = booking.SeatType?.ToLower() == "sleeper" ? SleeperPrice : SittingPrice;
+            // txtPricePerPerson.Text = pricePerPerson.ToString();
+            // txtAdvanceAmount.Text = booking.PaidAmount.ToString("0.00"); // Not in current model
 
-            double totalAmount = pricePerPerson * booking.NumberOfPersons * booking.TotalHours;
-            double balanceAmount = totalAmount - booking.PaidAmount;
-            txtBalanceAmount.Text = $"₹{balanceAmount:0.00}";
+            // double totalAmount = pricePerPerson * booking.NumberOfPersons * booking.TotalHours;
+            // double balanceAmount = totalAmount - booking.PaidAmount;
+            // txtBalanceAmount.Text = $"₹{balanceAmount:0.00}";
 
-            txtBookingDate.Text = booking.StartTime?.ToShortDateString() ?? "";
-            txtInTime.Text = booking.StartTime?.ToShortTimeString() ?? "";
-            txtOutTime.Text = booking.EndTime?.ToShortTimeString() ?? DateTime.Now.ToShortTimeString();
+            txtBookingDate.Text = booking.CreatedAt.ToShortDateString();
+            // txtInTime.Text = booking.StartTime?.ToShortTimeString() ?? ""; // Not in current model
+            // txtOutTime.Text = booking.EndTime?.ToShortTimeString() ?? DateTime.Now.ToShortTimeString(); // Not in current model
 
-            txtIdType.Text = booking.IdType ?? "";
-            txtIdNumber.Text = booking.IdNumber ?? "";
+            // txtIdType.Text = booking.IdType ?? ""; // Not in current model
+            // txtIdNumber.Text = booking.IdNumber ?? ""; // Not in current model
 
         }
         private void PaymentButton_Click(object sender, RoutedEventArgs e)

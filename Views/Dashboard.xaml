@@ -540,12 +540,12 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- Seat Type -->
+                                <!-- Locker Numbers -->
                                 <DataGridTemplateColumn Width="1*" MinWidth="100" IsReadOnly="True">
                                     <DataGridTemplateColumn.Header>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <Image Source="/assests/Group.png" Width="16" Height="16" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Luggage Type" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Locker Numbers" FontSize="14" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </DataGridTemplateColumn.Header>
                                     <DataGridTemplateColumn.CellTemplate>
@@ -559,17 +559,17 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- Start Time -->
+                                <!-- Booking Date -->
                                 <DataGridTemplateColumn Width="1*" MinWidth="90" IsReadOnly="True">
                                     <DataGridTemplateColumn.Header>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <Image Source="/assests/clock.png" Width="16" Height="16" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Start Time" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Booking Date" FontSize="14" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </DataGridTemplateColumn.Header>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding in_time, StringFormat=hh\\:mm}" FontSize="13"
+                                            <TextBlock Text="{Binding booking_date, StringFormat=MM/dd/yyyy}" FontSize="13"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        TextAlignment="Center"/>
@@ -577,17 +577,17 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- End Time -->
+                                <!-- Booking Time -->
                                 <DataGridTemplateColumn Width="1*" MinWidth="90" IsReadOnly="True">
                                     <DataGridTemplateColumn.Header>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <Image Source="/assests/clock.png" Width="16" Height="16" Margin="0,0,5,0"/>
-                                            <TextBlock Text="End Time" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Booking Time" FontSize="14" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </DataGridTemplateColumn.Header>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding out_time, StringFormat=hh\\:mm}" FontSize="13"
+                                            <TextBlock Text="{Binding in_time, StringFormat=hh\\:mm}" FontSize="13"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        TextAlignment="Center"/>
@@ -613,6 +613,28 @@
                                                            Foreground="#333333"
                                                            FontWeight="SemiBold"/>
                                             </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Total Amount -->
+                                <DataGridTemplateColumn Width="1*" MinWidth="100" IsReadOnly="True">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBlock Text="₹" FontSize="16" FontWeight="Bold" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Total Amount" FontSize="14" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="#2E7D32"
+                                                       FontWeight="SemiBold">
+                                                <Run Text="₹"/>
+                                                <Run Text="{Binding total_amount, StringFormat=N2}"/>
+                                            </TextBlock>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

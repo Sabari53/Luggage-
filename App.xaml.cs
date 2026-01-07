@@ -3,6 +3,7 @@ using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using UserModule.Storage;
 
 namespace UserModule
 {
@@ -48,6 +49,11 @@ namespace UserModule
             {
                 base.OnStartup(e);
                 Logger.Log("Application starting...");
+                
+                // Initialize database (creates tables if they don't exist)
+                Data.BookingDatabase.InitializeDatabase();
+                Logger.Log("Database initialized");
+                
                 NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
                 await CheckInitialNetworkStatusAsync();
                 
@@ -181,14 +187,14 @@ namespace UserModule
             try
             {
                 // Sync new offline bookings (IsSynced = 0)
-                int newSynced = await OfflineBookingStorage.SyncAllOfflineBookingsAsync(showMessages: showMessages);
+                var newSyncResult = await OfflineBookingStorage.SyncAllOfflineBookingsAsync(showMessages: showMessages);
 
                 // Sync updated bookings (IsSynced = 2) - completed/payment updates
-                int updatedSynced = await OfflineBookingStorage.SyncUpdatedBookingsAsync(showMessages: showMessages);
+                var updatedSyncResult = await OfflineBookingStorage.SyncUpdatedBookingsAsync(showMessages: showMessages);
                 
-                if (showMessages && (newSynced > 0 || updatedSynced > 0))
+                if (showMessages && (newSyncResult.synced > 0 || updatedSyncResult.synced > 0))
                 {
-                    // ShowMessage($"✅ Offline data synced successfully!\n\nNew bookings: {newSynced}\nUpdated bookings: {updatedSynced}", 
+                    // ShowMessage($"✅ Offline data synced successfully!\n\nNew bookings: {newSyncResult.synced}\nUpdated bookings: {updatedSyncResult.synced}", 
                     //     "Sync Complete", MessageBoxImage.Information);
                 }
             }

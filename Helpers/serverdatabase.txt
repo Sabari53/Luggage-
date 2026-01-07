@@ -1,0 +1,214 @@
+
+CREATE TABLE worker (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    worker_id VARCHAR(50) UNIQUE NOT NULL,
+    admin_id INT NOT NULL,
+    mobile_no VARCHAR(15),
+    worker_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_worker_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admin(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE types (
+    id SERIAL PRIMARY KEY,
+    admin_id INT NOT NULL,
+    type_name TEXT NOT NULL,
+
+    CONSTRAINT fk_types_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admin(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    user_name TEXT NOT NULL,
+    phone_number VARCHAR(15) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE booking (
+    id SERIAL PRIMARY KEY,
+    booking_id TEXT UNIQUE NOT NULL,
+    user_id INT NOT NULL,
+    worker_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    locker_number INT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_booking_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_booking_worker
+        FOREIGN KEY (worker_id)
+        REFERENCES worker(id),
+
+    CONSTRAINT fk_booking_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admin(id)
+);
+
+ALTER TABLE public.booking
+ALTER COLUMN locker_number
+TYPE TEXT
+USING locker_number::TEXT;
+
+CREATE TABLE booking_items (
+    id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL,
+
+    type_name TEXT NOT NULL,
+    days INT NOT NULL,
+    rate DECIMAL(10,2) NOT NULL,
+    quantity INT DEFAULT 1,
+
+    CONSTRAINT fk_booking_items_booking
+        FOREIGN KEY (booking_id)
+        REFERENCES booking(id)
+        ON DELETE CASCADE
+);
+
+-- Lockers table to store locker ranges per admin
+CREATE TABLE lockers (
+    id SERIAL PRIMARY KEY,
+    admin_id INT NOT NULL,
+    start_locker_no INT NOT NULL,
+    end_locker_no INT NOT NULL,
+    total_lockers INT GENERATED ALWAYS AS (end_locker_no - start_locker_no + 1) STORED,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_lockers_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admin(id)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT check_locker_range
+        CHECK (end_locker_no >= start_locker_no),
+    
+    CONSTRAINT check_positive_lockers
+        CHECK (start_locker_no > 0),
+    
+    -- Ensure only one locker row per admin
+    CONSTRAINT unique_admin_locker
+        UNIQUE (admin_id)
+);
+
+-- Reports table for storing pre-calculated statistics
+CREATE TABLE reports (
+    id SERIAL PRIMARY KEY,
+    admin_id INT NOT NULL,
+    report_year INT NOT NULL,
+    report_month INT NOT NULL,
+    
+    -- Booking statistics
+    total_bookings INT DEFAULT 0,
+    completed_bookings INT DEFAULT 0,
+    pending_bookings INT DEFAULT 0,
+    
+    -- Revenue statistics
+    total_revenue DECIMAL(12,2) DEFAULT 0.00,
+    
+    -- Worker statistics
+    active_workers INT DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_reports_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admin(id)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT check_valid_month
+        CHECK (report_month >= 1 AND report_month <= 12),
+    
+    CONSTRAINT check_valid_year
+        CHECK (report_year >= 2020),
+    
+    -- Ensure one report per admin per month
+    CONSTRAINT unique_admin_month_report
+        UNIQUE (admin_id, report_year, report_month)
+);
+
+-- Indexing
+CREATE INDEX idx_users_phone_number
+ON users (phone_number);
+
+CREATE INDEX idx_users_name_phone
+ON users (user_name, phone_number);
+
+CREATE INDEX idx_users_created_at
+ON users (created_at DESC);
+
+CREATE INDEX idx_worker_admin_id
+ON worker (admin_id);
+
+CREATE INDEX idx_types_admin_id
+ON types (admin_id);
+
+CREATE INDEX idx_booking_user_id
+ON booking (user_id);
+
+CREATE INDEX idx_booking_items_booking_id
+ON booking_items (booking_id);
+
+CREATE INDEX idx_booking_admin_created
+ON booking (admin_id, created_at);
+
+CREATE INDEX idx_booking_worker_id
+ON booking (worker_id);
+
+CREATE INDEX idx_booking_worker_admin_created
+ON booking (worker_id, admin_id, created_at DESC);
+
+-- Performance indexes for dashboard and filtering
+CREATE INDEX idx_booking_admin_status
+ON booking (admin_id, status);
+
+CREATE INDEX idx_booking_status_created
+ON booking (status, created_at DESC);
+
+CREATE INDEX idx_booking_created_admin
+ON booking (created_at DESC, admin_id);
+
+CREATE INDEX idx_booking_id_desc
+ON booking (id DESC);
+
+-- Composite index for common query patterns
+CREATE INDEX idx_booking_admin_date_status
+ON booking (admin_id, created_at, status);
+
+-- Lockers table indexes for fast fetching
+CREATE INDEX idx_lockers_admin_id
+ON lockers (admin_id);
+
+CREATE INDEX idx_lockers_range
+ON lockers (start_locker_no, end_locker_no);
+
+CREATE INDEX idx_lockers_admin_range
+ON lockers (admin_id, start_locker_no, end_locker_no);
+
+-- Reports table indexes for fast fetching
+CREATE INDEX idx_reports_admin_id
+ON reports (admin_id);
+
+CREATE INDEX idx_reports_year_month
+ON reports (report_year DESC, report_month DESC);
+
+CREATE INDEX idx_reports_admin_year_month
+ON reports (admin_id, report_year DESC, report_month DESC);
+
+CREATE INDEX idx_reports_updated_at
+ON reports (updated_at DESC);
+
+

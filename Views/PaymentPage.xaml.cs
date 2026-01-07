@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Effects;
 using UserModule.Models;
+using UserModule.Storage;
 
 namespace UserModule
 {
@@ -43,11 +44,11 @@ namespace UserModule
             _submitForm.txtOutTime.Text = DateTime.Now.ToShortTimeString();
 
             // 2️⃣ Update Booking object
-            var booking = Booking.GetBookingById(_submitForm.txtBookingId.Text);
+            var booking = OfflineBookingStorage.GetBookingById(_submitForm.txtBookingId.Text);
             if (booking != null)
             {
                 booking.Status = "Completed";
-                booking.EndTime = DateTime.Now;
+                // booking.EndTime = DateTime.Now; // Not in current model
             }
 
             // 3️⃣ Remove blur and PaymentPage overlay

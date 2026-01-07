@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using UserModule.Models;
+using UserModule.Storage;
 
 namespace UserModule
 {
@@ -167,9 +168,11 @@ namespace UserModule
                 int actualFullHours = (int)actualDuration.TotalHours; // Only count complete hours
                 
                 decimal overtimeCharges = 0;
+                int overtimeHours = 0;
                 if (actualFullHours > currentBooking.total_hours)
                 {
                     int extraHours = actualFullHours - currentBooking.total_hours;
+                    overtimeHours = extraHours;
                     overtimeCharges = extraHours * currentBooking.price_per_person * currentBooking.number_of_persons;
                 }
                 
@@ -178,9 +181,10 @@ namespace UserModule
                 // Update booking with out_time, overtime charges, and final balance
                 string result = await OfflineBookingStorage.CompleteBookingWithOvertimeAsync(
                     currentBooking.booking_id,
-                    now.TimeOfDay,
+                    overtimeHours,
                     overtimeCharges,
-                    finalBalance,
+                    currentBooking.total_amount + overtimeCharges,
+                    currentBooking.paid_amount,
                     paymentMethod);
                 
                 // Show result message

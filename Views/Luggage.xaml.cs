@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using UserModule.Storage;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
@@ -23,26 +24,15 @@ namespace UserModule.Views
 
         public ObservableCollection<LuggageItem> Items { get; } = new ObservableCollection<LuggageItem>();
 
-        public ObservableCollection<string> LuggageTypes { get; } = new ObservableCollection<string>
-        {
-            "Bag", "Suitcase", "Parcel", "Box", "Envelope", "Backpack", "Briefcase", "Duffel Bag",
-            "Travel Bag", "Laptop Bag", "Handbag", "Tote Bag", "Messenger Bag", "Garment Bag",
-            "Trolley Bag", "Sports Bag", "Camera Bag", "Cosmetic Bag", "Jewelry Box", "Document Folder"
-        };
+        public ObservableCollection<string> LuggageTypes { get; } = new ObservableCollection<string>();
 
-        private readonly System.Collections.Generic.Dictionary<string, decimal> priceMap = new()
-        {
-            { "Bag", 50m }, { "Suitcase", 120m }, { "Parcel", 80m }, { "Box", 200m }, { "Envelope", 20m },
-            { "Backpack", 70m }, { "Briefcase", 150m }, { "Duffel Bag", 90m }, { "Travel Bag", 110m },
-            { "Laptop Bag", 80m }, { "Handbag", 40m }, { "Tote Bag", 45m }, { "Messenger Bag", 65m },
-            { "Garment Bag", 130m }, { "Trolley Bag", 180m }, { "Sports Bag", 75m }, { "Camera Bag", 95m },
-            { "Cosmetic Bag", 30m }, { "Jewelry Box", 160m }, { "Document Folder", 25m }
-        };
+        private readonly System.Collections.Generic.Dictionary<string, decimal> priceMap = new();
 
         public Luggage()
         {
             InitializeComponent();
             DataContext = this;
+            LoadLuggageTypesFromDatabase();
             InitializeData();
             Items.CollectionChanged += Items_CollectionChanged;
 
@@ -91,26 +81,45 @@ namespace UserModule.Views
             txtBookingTime.Text = DateTime.Now.ToString("HH:mm");
         }
 
+        private void LoadLuggageTypesFromDatabase()
+        {
+            try
+            {
+                // Get admin code from session
+                string adminCode = LocalStorage.GetItem(LocalStorage.KEY_ADMIN_CODE);
+                
+                if (string.IsNullOrEmpty(adminCode))
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠ Admin code not found in session");
+                    return;
+                }
+
+                // Fetch luggage types from local database
+                var luggageTypes = UserModule.Data.BookingDatabase.GetCachedLuggageTypes(adminCode);
+                
+                LuggageTypes.Clear();
+                priceMap.Clear();
+                
+                foreach (var type in luggageTypes)
+                {
+                    LuggageTypes.Add(type.TypeName);
+                    // For now, set a default price - this can be updated if API provides prices
+                    priceMap[type.TypeName] = 50m; // Default price
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"✓ Loaded {luggageTypes.Count} luggage types from database for admin {adminCode}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"✗ Error loading luggage types: {ex.Message}");
+            }
+        }
+
         private void InitializeData()
         {
             try
             {
                 Items.Clear();
-
-                // Add initial items with proper price calculation
-                var bagItem = new LuggageItem { LuggageType = "Bag", Quantity = 2 };
-                if (priceMap.TryGetValue("Bag", out var bagPrice))
-                {
-                    bagItem.UpdateValues(bagPrice, bagPrice * 2, true);
-                }
-                Items.Add(bagItem);
-
-                var suitcaseItem = new LuggageItem { LuggageType = "Suitcase", Quantity = 1 };
-                if (priceMap.TryGetValue("Suitcase", out var suitcasePrice))
-                {
-                    suitcaseItem.UpdateValues(suitcasePrice, suitcasePrice * 1, true);
-                }
-                Items.Add(suitcaseItem);
 
                 // Add empty rows (minimum 3 rows)
                 while (Items.Count < 3)
@@ -402,51 +411,50 @@ namespace UserModule.Views
 
                 string idType = ((ComboBoxItem)cmbIdType.SelectedItem).Content.ToString();
 
-                // Create booking object to save to database
-                string bookingId = GenerateBookingId();
-                string workerId = LocalStorage.GetItem("worker_id") ?? LocalStorage.GetItem("username") ?? "LUGGAGE";
+                // Get session data
+                string workerCode = LocalStorage.GetItem(LocalStorage.KEY_WORKER_CODE) ?? string.Empty;
+                string adminCode = LocalStorage.GetItem(LocalStorage.KEY_ADMIN_CODE) ?? string.Empty;
                 
-                // Create luggage items description from the items
+                // Get selected lockers as comma-separated string
+                string lockerNumbers = string.Join(",", selectedLockersList);
+                
+                // Create luggage items list for API
                 var filledItems = Items.Where(item => !string.IsNullOrWhiteSpace(item.LuggageType) && item.Quantity > 0).ToList();
-                string luggageDescription = string.Join(", ", filledItems.Select(item => $"{item.LuggageType} x{item.Quantity}"));
-
-                var booking = new Models.Booking1
+                var bookingItems = filledItems.Select(item => new Models.BookingItem
                 {
-                    booking_id = bookingId,
-                    worker_id = workerId,
-                    guest_name = customerName,
-                    phone_number = txtPhone.Text.Trim(),
-                    number_of_persons = filledItems.Sum(item => item.Quantity), // Total number of luggage items
-                    booking_type = $"Luggage ({luggageDescription})", // Store luggage details in booking_type
-                    total_hours = 0, // Luggage doesn't have hours concept
-                    booking_date = DateTime.TryParse(txtBookingDate.Text, out DateTime bookingDate) ? bookingDate : DateTime.Now,
-                    in_time = DateTime.TryParse(txtBookingTime.Text, out DateTime bookingTime) ? bookingTime.TimeOfDay : DateTime.Now.TimeOfDay,
-                    out_time = null, // Will be set when luggage is collected
-                    proof_type = idType,
-                    proof_id = txtIdNumber.Text.Trim(),
-                    price_per_person = totalAmount / Math.Max(1, filledItems.Sum(item => item.Quantity)), // Average price per item
-                    total_amount = totalAmount,
-                    paid_amount = totalAmount, // Luggage is typically paid upfront
-                    balance_amount = 0,
-                    payment_method = "Cash",
-                    created_at = DateTime.Now,
-                    updated_at = DateTime.Now,
-                    status = "active", // Active until luggage is collected
-                    IsSynced = 0
-                };
+                    TypeName = item.LuggageType,
+                    Days = 1, // Default to 1 day
+                    Rate = item.Price,
+                    Quantity = item.Quantity
+                }).ToList();
 
-                // Save booking to database
-                await OfflineBookingStorage.SaveBookingAsync(booking, showMessages: false);
-                Logger.Log($"Luggage booking saved: {bookingId} for {customerName}");
+                // Save booking to database and API
+                var (success, bookingId) = await OfflineBookingStorage.SaveBookingAsync(
+                    workerCode, 
+                    adminCode, 
+                    lockerNumbers, 
+                    customerName, 
+                    txtPhone.Text.Trim(), 
+                    bookingItems,
+                    showMessages: true
+                );
+
+                if (string.IsNullOrEmpty(bookingId))
+                {
+                    bookingId = GenerateBookingId(); // Fallback
+                }
+                
+                Logger.Log($"Luggage booking saved: {bookingId} for {customerName} (Lockers: {lockerNumbers})");
 
                 // Show success message with booking details
+                string syncStatus = success ? "✅ Uploaded Online" : "💾 Saved Locally (will sync when online)";
                 string summary = $"LUGGAGE BOOKING BILL\n" +
                                $"====================\n\n" +
+                               $"Status: {syncStatus}\n" +
                                $"Booking ID: {bookingId}\n" +
                                $"Customer: {customerName}\n" +
                                $"Phone: {txtPhone.Text}\n" +
-                               $"ID Type: {idType}\n" +
-                               $"ID Number: {txtIdNumber.Text}\n" +
+                               $"Lockers: {lockerNumbers}\n" +
                                $"Date: {txtBookingDate.Text}\n" +
                                $"Time: {txtBookingTime.Text}\n\n" +
                                $"ITEMS:\n" +
@@ -462,7 +470,7 @@ namespace UserModule.Views
                 summary += $"TOTAL AMOUNT: ₹{totalAmount:F2}\n";
                 summary += $"==============================";
 
-                MessageBox.Show(summary, "Bill Generated Successfully", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(summary, "Booking Successful", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Refresh Dashboard to show the new booking
                 RefreshDashboard();

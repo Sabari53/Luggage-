@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using UserModule.Models;
+using UserModule.Storage;
 
 namespace UserModule
 {
@@ -250,11 +251,9 @@ namespace UserModule
                 // Complete payment
                 var result = await OfflineBookingStorage.CompleteBookingWithPaymentAsync(
                     currentBooking.booking_id,
-                    paidAmount,
                     totalAmount,
-                    extraCharges,
-                    paymentMethod,
-                    outTime
+                    paidAmount,
+                    paymentMethod
                 );
 
                 bool success = result.Contains("✅");

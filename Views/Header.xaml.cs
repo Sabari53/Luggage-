@@ -71,7 +71,7 @@ namespace UserModule
             var popupText = new TextBlock
             {
                 Text = $"{greeting}, {capitalizedUsername}! Welcome Back. Have a good day!!",
-                Foreground = (Brush)new BrushConverter().ConvertFromString("#28C76F"),
+                Foreground = (Brush?)new BrushConverter().ConvertFromString("#28C76F") ?? Brushes.Green,
                 FontFamily = new FontFamily("Segoe UI Semibold"),
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 14
@@ -357,12 +357,13 @@ namespace UserModule
         }
 
         /// <summary>
-        /// Handle Header Scan button click - opens scan control in Dashboard
+        /// Handle Header Scan button click - opens scan billing view
         /// </summary>
         private void HeaderScanButton_Click(object sender, RoutedEventArgs e)
         {
             SetSelectedButton(ScanHeaderButton);
-            OpenScanControl();
+            LoadContent(new ScanBillingControl());
+            Logger.Log("Scan Billing clicked from Header");
         }
 
         /// <summary>

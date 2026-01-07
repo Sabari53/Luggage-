@@ -1,0 +1,320 @@
+Worker Routes:
+POST - LOGIN - http://localhost:PORT/api/v1/worker/login
+
+api returns 
+module.exports.loginWorker = async ({ username, password }) => {
+    try {
+        const query = `
+            SELECT
+                w.password,
+                w.worker_id,
+                w.worker_name,
+                a.admin_id AS admin_code
+            FROM worker w
+            JOIN admin a ON w.admin_id = a.id
+            WHERE w.username = $1
+        `;
+
+        const { rows } = await db.query(query, [username]);
+
+        if (rows.length === 0) {
+            return null;
+        }
+
+        const {
+            password: hashedPassword,
+            worker_id,
+            worker_name,
+            admin_code
+        } = rows[0];
+
+        const isMatch = await bcrypt.compare(password, hashedPassword);
+        if (!isMatch) {
+            return null;
+        }
+
+        return {
+            workerCode: worker_id,
+            workerName: worker_name,
+            adminCode: admin_code   
+        };
+
+    } catch (error) {
+        throw error;
+    }
+};
+
+
+
+
+Common Routes:
+
+GET - LUGGAGE TYPES  - http://localhost:PORT/api/v1/common/luggage-types/:adminCode
+
+// Get Luggage Types list
+module.exports.getLuggageTypes = async ({ adminCode }) => {
+    try {
+        const query = `
+            SELECT
+                t.id,
+                t.type_name
+            FROM types t
+            JOIN admin a ON t.admin_id = a.id
+            WHERE a.admin_id = $1
+            ORDER BY t.type_name;
+        `;
+
+        const { rows } = await db.query(query, [adminCode]);
+
+        return rows;
+
+    } catch (error) {
+        throw error;
+    }
+};
+
+
+GET - WORKER BOOKINGS - http://localhost/PORT/api/v1/common/bookings/:adminCode/:workerCode
+
+
+module.exports.getWorkerBookings = async ({ adminCode, workerCode, limit = 20, timeFilter, cursor = null }) => {
+  try {
+    if (!adminCode || !workerCode) {
+      throw new Error("adminCode and workerCode are required");
+    }
+
+    const values = [adminCode, workerCode];
+    let whereClauses = [
+      `b.admin_id = (SELECT id FROM admin WHERE admin_id = $1)`,
+      `w.worker_id = $2`
+    ];
+
+    if (timeFilter) {
+      const filter = timeFilter.toLowerCase();
+      if (filter === "today") {
+        whereClauses.push(`b.created_at >= CURRENT_DATE`);
+      } else if (filter === "week") {
+        whereClauses.push(`b.created_at >= CURRENT_DATE - INTERVAL '7 days'`);
+      } else if (filter === "month") {
+        whereClauses.push(`b.created_at >= date_trunc('month', CURRENT_DATE)`);
+      }
+    }
+
+    if (cursor) {
+      values.push(cursor);
+      whereClauses.push(`b.id > $${values.length}`);
+    }
+
+    values.push(limit);
+
+    const query = `
+      SELECT 
+        b.booking_id AS "bookingId",
+        u.user_name AS "userName",
+        u.phone_number AS "phoneNumber",
+        w.worker_name AS "workerName",
+        b.locker_number AS "lockerNumber",
+        b.status,
+        ARRAY(
+          SELECT json_build_object(
+            'typeName', bi.type_name,
+            'days', bi.days,
+            'rate', bi.rate,
+            'quantity', bi.quantity
+          )
+          FROM booking_items bi
+          WHERE bi.booking_id = b.id
+        ) AS items
+      FROM booking b
+      JOIN worker w ON w.id = b.worker_id
+      JOIN users u ON u.id = b.user_id
+      WHERE ${whereClauses.join(" AND ")}
+      ORDER BY b.id ASC
+      LIMIT $${values.length};
+    `;
+
+    const { rows } = await db.query(query, values);
+
+    const result = rows.map((row, index) => ({
+      ...row,
+      internalId: cursor ? cursor + index + 1 : index + 1
+    }));
+
+    return result;
+
+  } catch (error) {
+    throw error;
+  }
+};
+
+POST - INSERT BOOKINGS - http://localhost:PORT/api/v1/common/bookings
+
+module.exports.insertBooking = async ({
+  workerCode,
+  adminCode,
+  lockerNumber,
+  itemsList,
+  userName,
+  phoneNumber
+ }) => {
+  try {
+    if (!itemsList || itemsList.length === 0) {
+      throw new Error("itemsList cannot be empty");
+    }
+
+    if (!userName || !phoneNumber) {
+      throw new Error("userName and phoneNumber are required");
+    }
+
+    const bookingCode = generateBookingId(workerCode, adminCode);
+
+    const typeNames  = itemsList.map(i => i.typeName);
+    const daysArr    = itemsList.map(i => i.days);
+    const rates      = itemsList.map(i => i.rate);
+    const quantities = itemsList.map(i => i.quantity || 1);
+
+    const query = `
+      WITH user_insert AS (
+        INSERT INTO users (user_name, phone_number)
+        VALUES ($8, $9)
+        RETURNING id
+      ),
+      booking_insert AS (
+        INSERT INTO booking (
+          booking_id,
+          user_id,
+          worker_id,
+          admin_id,
+          locker_number
+        )
+        SELECT
+          $2,
+          u.id,
+          w.id,
+          w.admin_id,
+          $3
+        FROM worker w, user_insert u
+        WHERE w.worker_id = $1
+        RETURNING id
+      )
+      INSERT INTO booking_items
+        (booking_id, type_name, days, rate, quantity)
+      SELECT
+        b.id,
+        t.type_name,
+        t.days,
+        t.rate,
+        t.quantity
+      FROM booking_insert b
+      JOIN UNNEST(
+        $4::text[],
+        $5::int[],
+        $6::numeric[],
+        $7::int[]
+      ) AS t(type_name, days, rate, quantity)
+      ON TRUE
+      RETURNING booking_id, type_name, days, rate, quantity;
+    `;
+
+    const values = [
+      workerCode,     
+      bookingCode,    
+      lockerNumber,   
+      typeNames,      
+      daysArr,        
+      rates,          
+      quantities,     
+      userName,       
+      phoneNumber     
+    ];
+
+    const { rows } = await db.query(query, values);
+
+    if (!rows.length) throw new Error("Invalid workerCode");
+
+    // Get booking ID and admin ID for report update
+    const bookingDataQuery = `
+      SELECT b.id, b.admin_id 
+      FROM booking b 
+      WHERE b.booking_id = $1
+    `;
+    const { rows: bookingRows } = await db.query(bookingDataQuery, [bookingCode]);
+    
+    if (bookingRows.length > 0) {
+      // Update reports (non-blocking, fire and forget)
+      this.updateReportsAfterBooking({
+        bookingId: bookingRows[0].id,
+        adminId: bookingRows[0].admin_id
+      }).catch(err => console.error("Report update failed:", err));
+    }
+
+    return {
+      bookingId: bookingCode,
+      userName: userName,
+      phoneNumber: phoneNumber,
+      items: rows
+    };
+
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+PUT - UPDATE BOOKING STATUS - http://localhost:PORT/api/v1/common/:bookingCode/status
+
+
+module.exports.updateBookingStatus = async ({ bookingCode, newStatus }) => {
+  try {
+    // Get old status first
+    const getOldQuery = `
+      SELECT id, admin_id, status 
+      FROM booking 
+      WHERE booking_id = $1
+    `;
+    const { rows: oldRows } = await db.query(getOldQuery, [bookingCode]);
+    
+    if (oldRows.length === 0) {
+      throw new Error("Booking not found");
+    }
+    
+    const oldStatus = oldRows[0].status;
+    const bookingId = oldRows[0].id;
+    const adminId = oldRows[0].admin_id;
+
+    const query = `
+      UPDATE booking
+      SET status = $2
+      WHERE booking_id = $1
+      RETURNING
+        booking_id AS "bookingCode",
+        worker_id AS "workerId",
+        admin_id AS "adminId",
+        locker_number AS "lockerNumber",
+        status;
+    `;
+
+    const values = [bookingCode, newStatus];
+
+    const { rows } = await db.query(query, values);
+
+    if (rows.length === 0) {
+      throw new Error("Booking not found");
+    }
+
+    // Update reports if status changed (non-blocking)
+    if (oldStatus !== newStatus) {
+      this.updateReportsAfterStatusChange({
+        bookingId,
+        adminId,
+        oldStatus,
+        newStatus
+      }).catch(err => console.error("Report update failed:", err));
+    }
+
+    return rows[0];
+
+  } catch (error) {
+    throw error;
+  }
+};
